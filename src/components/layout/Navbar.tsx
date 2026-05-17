@@ -109,8 +109,46 @@ export default function Navbar() {
           gap: { xs: 1.5, md: 2 },
         }}
       >
-        <Box component={Link} href="/" sx={{ textDecoration: "none", color: "inherit", minWidth: 0, justifySelf: "start", display: "flex", alignItems: "center" }}>
-          <RKStudioLogo size={48} variant="full" />
+        <Box
+          component={Link}
+          href="/"
+          sx={{
+            textDecoration: "none",
+            color: "inherit",
+            minWidth: 0,
+            justifySelf: "start",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <Box
+            sx={{
+              px: 0.7,
+              py: 0.35,
+              borderRadius: 2,
+              background: "linear-gradient(135deg, rgba(15,38,89,0.08), rgba(243,120,38,0.08), rgba(5,126,98,0.08))",
+              boxShadow: "0 6px 16px rgba(15, 23, 42, 0.08)",
+              animation: "brandPulse 3s ease-in-out infinite",
+              "@keyframes brandPulse": {
+                "0%": { transform: "scale(1)" },
+                "50%": { transform: "scale(1.02)" },
+                "100%": { transform: "scale(1)" },
+              },
+            }}
+          >
+            <RKStudioLogo
+              size={48}
+              variant="full"
+              sx={{
+                animation: "logoGlow 3.4s ease-in-out infinite",
+                "@keyframes logoGlow": {
+                  "0%": { filter: "drop-shadow(0 0 0 rgba(35, 88, 255, 0))" },
+                  "50%": { filter: "drop-shadow(0 0 8px rgba(35, 88, 255, 0.4))" },
+                  "100%": { filter: "drop-shadow(0 0 0 rgba(35, 88, 255, 0))" },
+                },
+              }}
+            />
+          </Box>
         </Box>
 
         <Stack

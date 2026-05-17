@@ -81,6 +81,15 @@ const problems = [
   },
 ];
 
+const heroBackgroundVariants = {
+  warmPremium:
+    "radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0) 35%), radial-gradient(circle at 84% 18%, rgba(255, 244, 214, 0.55) 0%, rgba(255, 244, 214, 0) 34%), linear-gradient(135deg, rgb(244, 232, 214) 0%, rgb(236, 217, 191) 52%, rgb(228, 205, 177) 100%)",
+  roseIvory:
+    "radial-gradient(circle at 12% 14%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 36%), radial-gradient(circle at 86% 20%, rgba(255, 232, 217, 0.6) 0%, rgba(255, 232, 217, 0) 34%), linear-gradient(135deg, rgb(249, 238, 226) 0%, rgb(241, 223, 207) 48%, rgb(233, 210, 192) 100%)",
+} as const;
+
+const activeHeroBackground = heroBackgroundVariants.roseIvory;
+
 export default function Home() {
   return (
     <Layout>
@@ -88,10 +97,12 @@ export default function Home() {
         {/* Hero Section */}
         <Box
           sx={{
-            background: "linear-gradient(135deg, #f5e6d3 0%, #e8d4c4 50%, #f0e6d8 100%)",
+            background: activeHeroBackground,
             borderRadius: 3,
             p: { xs: 3, md: 6 },
             textAlign: "center",
+            border: "1px solid rgba(176, 138, 95, 0.22)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.45), 0 20px 44px rgba(115, 77, 35, 0.12)",
             animation: "fadeIn 0.8s ease-in",
             "@keyframes fadeIn": {
               from: { opacity: 0, transform: "translateY(20px)" },
@@ -100,15 +111,13 @@ export default function Home() {
           }}
         >
           <Stack spacing={3} alignItems="center">
-            <Typography
-              variant="h2"
+            <Box
               sx={{
-                fontSize: { xs: "2rem", md: "3.5rem" },
-                fontWeight: 800,
-                lineHeight: 1.2,
                 position: "relative",
-                display: "inline-block",
-                color: "rgb(17, 34, 78)",
+                display: "inline-flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: { xs: 0.4, md: 0.7 },
                 textShadow: "0 8px 20px rgba(35, 88, 255, 0.22)",
                 animation: "titleFloat 3.8s ease-in-out infinite",
                 "@keyframes titleFloat": {
@@ -127,6 +136,7 @@ export default function Home() {
                     "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%)",
                   transform: "skewX(-18deg)",
                   animation: "titleShine 3.2s ease-in-out infinite",
+                  pointerEvents: "none",
                 },
                 "@keyframes titleShine": {
                   "0%": { left: "-35%" },
@@ -134,17 +144,29 @@ export default function Home() {
                 },
               }}
             >
-              <Box component="span" sx={{ color: "rgb(15, 38, 89)" }}>
-                Custom Tailoring Made Easy
-              </Box>
-              <Box component="span" sx={{ mx: 1, color: "rgb(243, 120, 38)" }}>
-                |
-              </Box>
-              <Box component="span" sx={{ color: "rgb(5, 126, 98)" }}>
+              <Typography
+                variant="h2"
+                sx={{
+                  fontSize: { xs: "2rem", md: "3.5rem" },
+                  fontWeight: 800,
+                  lineHeight: 1.2,
+                  color: "rgb(15, 38, 89)",
+                }}
+              >
+                Custom Tailoring Made Easy 👗
+              </Typography>
+              <Typography
+                variant="h3"
+                sx={{
+                  fontSize: { xs: "1.25rem", md: "2.15rem" },
+                  fontWeight: 700,
+                  lineHeight: 1.25,
+                  color: "rgb(5, 126, 98)",
+                }}
+              >
                 Custom Tailoring Ab Bilkul Easy Hai
-              </Box>{" "}
-              👗
-            </Typography>
+              </Typography>
+            </Box>
             <Box
               sx={{
                 width: { xs: 240, md: 520 },
