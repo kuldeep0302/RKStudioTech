@@ -11,6 +11,7 @@ import { formatINR } from "@/utils/currency";
 type ProductCardProps = {
   product: CatalogProduct;
   onAddToCart?: (product: CatalogProduct) => void;
+  onOpenDetails?: (product: CatalogProduct) => void;
   showSuggestion?: boolean;
   actionLabel?: string;
 };
@@ -18,9 +19,11 @@ type ProductCardProps = {
 function ProductCardComponent({
   product,
   onAddToCart,
+  onOpenDetails,
   showSuggestion = false,
   actionLabel = "Order",
 }: ProductCardProps) {
+  const isFabric = product.productType === "fabric";
   const discountPercent = product.discountPercent || 0;
   const discountedPrice = discountPercent > 0
     ? Math.max(0, Math.round(product.price * (1 - discountPercent / 100)))
@@ -29,11 +32,13 @@ function ProductCardComponent({
 
   return (
     <Card
+      onClick={onOpenDetails ? () => onOpenDetails(product) : undefined}
       sx={{
         height: "100%",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+        cursor: onOpenDetails ? "pointer" : "default",
         "&:hover img": {
           transform: "scale(1.04)",
         },
@@ -61,6 +66,21 @@ function ProductCardComponent({
           <Typography variant="h6">{product.name}</Typography>
           <Chip label={product.inStock === false ? "Nahi hai" : "Hai"} color={product.inStock === false ? "default" : "success"} size="small" />
         </Stack>
+        {isFabric ? (
+          <Chip
+            label="Sold per meter / Meter ke hisaab se bikta hai"
+            size="small"
+            color="warning"
+            sx={{ mt: 1 }}
+          />
+        ) : (
+          <Chip
+            label="Per piece / Fixed price"
+            size="small"
+            color="info"
+            sx={{ mt: 1 }}
+          />
+        )}
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           {product.description || `${product.tag || "Roz ke liye"} ${product.type}.`}
         </Typography>
@@ -79,7 +99,7 @@ function ProductCardComponent({
         </Stack>
         <Stack direction="row" alignItems="baseline" spacing={1} sx={{ mt: 1.3 }}>
           <Typography variant="h6" sx={{ color: "primary.main" }}>
-            {formatINR(discountedPrice)}
+            {isFabric ? `${formatINR(discountedPrice)} / meter` : `${formatINR(discountedPrice)} per piece`}
           </Typography>
           {discountPercent > 0 ? (
             <Typography variant="body2" sx={{ color: "text.disabled", textDecoration: "line-through" }}>
@@ -109,7 +129,10 @@ function ProductCardComponent({
             variant="contained"
             startIcon={<ShoppingCartIcon />}
             disabled={product.inStock === false}
-            onClick={() => onAddToCart(product)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAddToCart(product);
+            }}
           >
             {actionLabel}
           </Button>

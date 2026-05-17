@@ -4,6 +4,7 @@ export type Product = {
   id: string;
   name: string;
   price: number;
+  productType: "fabric" | "piece";
   image: string;
   type: string;
   description?: string;
@@ -55,6 +56,7 @@ export const fabricProducts: Product[] = [
     id: "fab-1",
     name: "Soft Cotton Floral",
     price: 950,
+    productType: "fabric",
     image:
       "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=900&q=80",
     type: "cotton",
@@ -69,6 +71,7 @@ export const fabricProducts: Product[] = [
     id: "fab-2",
     name: "Rayon Printed Premium",
     price: 1350,
+    productType: "fabric",
     image:
       "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80",
     type: "rayon",
@@ -83,6 +86,7 @@ export const fabricProducts: Product[] = [
     id: "fab-3",
     name: "Silk Blend Festive",
     price: 2890,
+    productType: "fabric",
     image:
       "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=80",
     type: "silk",
@@ -97,6 +101,7 @@ export const fabricProducts: Product[] = [
     id: "fab-4",
     name: "Linen Comfort",
     price: 1750,
+    productType: "fabric",
     image:
       "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=900&q=80",
     type: "linen",
@@ -111,6 +116,7 @@ export const fabricProducts: Product[] = [
     id: "fab-5",
     name: "Cotton Handblock",
     price: 1220,
+    productType: "fabric",
     image:
       "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80",
     type: "cotton",
@@ -125,6 +131,7 @@ export const fabricProducts: Product[] = [
     id: "fab-6",
     name: "Rayon Party Texture",
     price: 2480,
+    productType: "fabric",
     image:
       "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80",
     type: "rayon",
@@ -140,12 +147,13 @@ export const fabricProducts: Product[] = [
 export const dupattaProducts: Product[] = [
   {
     id: "dup-1",
-    name: "Chiffon Ombre Dupatta",
+    name: "Ready Suit - Chiffon Ombre",
     price: 790,
+    productType: "piece",
     image:
       "https://images.unsplash.com/photo-1594633313593-bab3825d0caf?auto=format&fit=crop&w=900&q=80",
     type: "chiffon",
-    description: "Soft chiffon with ombre blend.",
+    description: "Ready-to-wear suit set.",
     category: "dupatta",
     inStock: true,
     tag: "trending",
@@ -155,12 +163,13 @@ export const dupattaProducts: Product[] = [
   },
   {
     id: "dup-2",
-    name: "Bandhani Cotton Dupatta",
+    name: "Ready Suit - Bandhani Cotton",
     price: 980,
+    productType: "piece",
     image:
       "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80",
     type: "cotton",
-    description: "Everyday bandhani inspired style.",
+    description: "Everyday ready suit with bandhani inspired style.",
     category: "dupatta",
     inStock: true,
     tag: "daily wear",
@@ -170,12 +179,13 @@ export const dupattaProducts: Product[] = [
   },
   {
     id: "dup-3",
-    name: "Silk Festive Dupatta",
+    name: "Designer Silk Festive Suit",
     price: 1850,
+    productType: "piece",
     image:
       "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?auto=format&fit=crop&w=900&q=80",
     type: "silk",
-    description: "Premium silk with festive border.",
+    description: "Premium ready-made festive suit.",
     category: "dupatta",
     inStock: true,
     tag: "festive",
@@ -185,12 +195,13 @@ export const dupattaProducts: Product[] = [
   },
   {
     id: "dup-4",
-    name: "Georgette Mirror Work",
+    name: "Georgette Mirror Work Suit",
     price: 1490,
+    productType: "piece",
     image:
       "https://images.unsplash.com/photo-1520006403909-838d6b92c22e?auto=format&fit=crop&w=900&q=80",
     type: "georgette",
-    description: "Elegant mirror-work touch for parties.",
+    description: "Ready-to-wear party suit with mirror-work touch.",
     category: "dupatta",
     inStock: false,
     tag: "party",

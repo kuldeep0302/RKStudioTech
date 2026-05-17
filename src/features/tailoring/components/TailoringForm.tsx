@@ -529,7 +529,6 @@ export default function TailoringForm() {
                   <FormControlLabel value="salwar-suit" control={<Radio />} label="Salwar Suit" />
                   <FormControlLabel value="blouse" control={<Radio />} label="Blouse" />
                   <FormControlLabel value="kurti" control={<Radio />} label="Kurti" />
-                  <FormControlLabel value="mens-kurta" control={<Radio />} label="Mens Kurta" />
                 </RadioGroup>
               </FormControl>
             ) : null}
@@ -774,7 +773,7 @@ export default function TailoringForm() {
                                 </Typography>
                               </Stack>
                               <Button variant="outlined" color="inherit" onClick={() => updateField("rkStudioProductId", "") }>
-                                Selection hataein
+                                Remove selection
                               </Button>
                             </Stack>
                           </Card>
@@ -789,7 +788,7 @@ export default function TailoringForm() {
                                   Kapda Compare
                                 </Typography>
                                 <Button size="small" color="inherit" onClick={() => setCompareProductIds([])}>
-                                  Compare hataein
+                                  Clear compare
                                 </Button>
                               </Stack>
                               <Grid container spacing={2}>
@@ -816,10 +815,10 @@ export default function TailoringForm() {
                                         </Typography>
                                         <Stack direction="row" spacing={1}>
                                           <Button variant="contained" size="small" onClick={() => updateField("rkStudioProductId", product.id)}>
-                                            Chune
+                                            Select
                                           </Button>
                                           <Button variant="outlined" size="small" onClick={() => toggleCompareProduct(product.id)}>
-                                            Hatayein
+                                            Remove
                                           </Button>
                                         </Stack>
                                       </Stack>
@@ -857,7 +856,7 @@ export default function TailoringForm() {
                                   Baad me dekhne ke liye save
                                 </Typography>
                                 <Button size="small" color="inherit" onClick={() => setSavedProductIds([])}>
-                                  Save hataein
+                                  Clear saved
                                 </Button>
                               </Stack>
                               <Grid container spacing={2}>
@@ -877,10 +876,10 @@ export default function TailoringForm() {
                                         </Typography>
                                         <Stack direction="row" spacing={1}>
                                           <Button variant="contained" size="small" onClick={() => updateField("rkStudioProductId", product.id)}>
-                                            Chune
+                                            Select
                                           </Button>
                                           <Button variant="outlined" size="small" onClick={() => toggleSavedProduct(product.id)}>
-                                            Hatayein
+                                            Remove
                                           </Button>
                                         </Stack>
                                       </Stack>
@@ -1015,7 +1014,7 @@ export default function TailoringForm() {
                                           updateField("rkStudioProductId", product.id);
                                         }}
                                       >
-                                        {isSelected ? "Selected" : "Kapda chune"}
+                                        {isSelected ? "Selected" : "Select fabric"}
                                       </Button>
                                       <Button
                                         variant={isCompared ? "contained" : "text"}
@@ -1099,10 +1098,10 @@ export default function TailoringForm() {
 
             <Stack direction="row" justifyContent="space-between">
               <Button variant="outlined" onClick={handleBack} disabled={activeStep === 0}>
-                Peeche
+                Back
               </Button>
               <Button variant="contained" onClick={handleNext} disabled={submitting}>
-                {isLast ? "Payment par badhein" : "Aage badhein"}
+                {isLast ? "Proceed to payment" : "Next"}
               </Button>
             </Stack>
           </Stack>

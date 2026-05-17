@@ -22,6 +22,7 @@ export type CatalogProduct = {
   id: string;
   name: string;
   price: number;
+  productType: "fabric" | "piece";
   type: string;
   category: ProductCategory;
   image: string;
@@ -37,10 +38,12 @@ export type CatalogProduct = {
 type ProductInput = {
   name: string;
   price: number;
+  productType?: "fabric" | "piece";
   type: string;
   category: ProductCategory;
   image: string;
   tag: string;
+  description?: string;
   discountPercent?: number;
   rating?: number;
 };
@@ -49,6 +52,12 @@ const toProduct = (id: string, data: Partial<CatalogProduct>): CatalogProduct =>
   id,
   name: data.name || "Untitled product",
   price: typeof data.price === "number" ? data.price : Number(data.price || 0),
+  productType:
+    data.productType === "fabric" || data.productType === "piece"
+      ? data.productType
+      : ((data.category as ProductCategory) || "fabric") === "fabric"
+        ? "fabric"
+        : "piece",
   type: data.type || "general",
   category: (data.category as ProductCategory) || "fabric",
   image: data.image || "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80",
@@ -66,6 +75,7 @@ const dummyCatalogProducts: CatalogProduct[] = [...fabricProducts.slice(0, 3), .
     id: product.id,
     name: product.name,
     price: product.price,
+    productType: product.productType,
     type: product.type,
     category: product.category,
     image: product.image,

@@ -7,6 +7,7 @@ import Layout from "@/components/layout/Layout";
 import { OrderDetails } from "@/services/orderService";
 import { saveOrderToFirestore } from "@/services/orderService";
 import { RK_STUDIO } from "@/utils/constants";
+import { removeFabricCartItem, removeFabricCartItems } from "@/utils/fabricCart";
 import { startRazorpayPayment, buildUpiPaymentLink } from "@/utils/payment";
 import { clearPendingPaymentOrder, readPendingPaymentOrder } from "@/utils/paymentSession";
 import { buildWhatsAppUrl } from "@/utils/whatsapp";
@@ -85,6 +86,43 @@ export default function CheckoutPage() {
     return pendingOrder.paymentType === "advance" ? "Advance De Diya" : "Pura De Diya";
   }, [pendingOrder]);
 
+  const fabricPricePerMeter =
+    (pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta")
+      && typeof pendingOrder.orderDetails?.price_per_unit === "number"
+      ? pendingOrder.orderDetails.price_per_unit
+      : (pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta")
+        && typeof pendingOrder.orderDetails?.price_per_meter === "number"
+        ? pendingOrder.orderDetails.price_per_meter
+      : null;
+  const fabricSelectedMeter =
+    (pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta")
+      && typeof pendingOrder.orderDetails?.selected_quantity === "number"
+      ? pendingOrder.orderDetails.selected_quantity
+      : (pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta")
+        && typeof pendingOrder.orderDetails?.selected_meter === "number"
+        ? pendingOrder.orderDetails.selected_meter
+      : null;
+  const fabricTotalPrice =
+    (pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta")
+      && typeof pendingOrder.orderDetails?.total_price === "number"
+      ? pendingOrder.orderDetails.total_price
+      : null;
+  const unitLabel =
+    (pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta")
+      && typeof pendingOrder.orderDetails?.unit_label === "string"
+      ? pendingOrder.orderDetails.unit_label
+      : "unit";
+  const fabricCheckoutMode =
+    (pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta")
+      && typeof pendingOrder.orderDetails?.checkout_mode === "string"
+      ? pendingOrder.orderDetails.checkout_mode
+      : null;
+  const fabricItemCount =
+    (pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta")
+      && typeof pendingOrder.orderDetails?.item_count === "number"
+      ? pendingOrder.orderDetails.item_count
+      : null;
+
   const validateAmount = () => {
     if (!pendingOrder) {
       return "Payment session missing hai.";
@@ -126,6 +164,21 @@ export default function CheckoutPage() {
 
     setSuccess("Payment safal ho gayi. Hum WhatsApp par contact karenge.");
     setOrderConfirmed(true);
+
+    if (pendingOrder.service === "fabric" || pendingOrder.service === "dupatta") {
+      const cartItemId = pendingOrder.orderDetails?.cart_item_id;
+      const cartItemIds = pendingOrder.orderDetails?.cart_item_ids;
+
+      if (typeof cartItemId === "string" && cartItemId.trim()) {
+        removeFabricCartItem(cartItemId);
+      }
+
+      if (Array.isArray(cartItemIds)) {
+        const safeIds = cartItemIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+        removeFabricCartItems(safeIds);
+      }
+    }
+
     clearPendingPaymentOrder(token);
 
     const url = buildWhatsAppUrl({
@@ -276,8 +329,18 @@ export default function CheckoutPage() {
               <Stack spacing={1}>
                 <Typography variant="subtitle1">Order ki jankari</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Service: {pendingOrder?.service === "tailoring" ? "Silai" : "Kapda"}
+                  Service: {pendingOrder?.service === "tailoring" ? "Silai" : pendingOrder?.service === "dupatta" ? "Suit" : "Kapda"}
                 </Typography>
+                {(pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta") && fabricPricePerMeter !== null && fabricSelectedMeter !== null ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Price formula: INR {fabricPricePerMeter} x {fabricSelectedMeter} {unitLabel} = INR {fabricTotalPrice ?? finalAmount}
+                  </Typography>
+                ) : null}
+                {(pendingOrder?.service === "fabric" || pendingOrder?.service === "dupatta") && fabricCheckoutMode === "cart_all" && fabricItemCount !== null ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Combined cart checkout: {fabricItemCount} items | Total INR {fabricTotalPrice ?? finalAmount}
+                  </Typography>
+                ) : null}
                 <Typography variant="body2" color="text.secondary">
                   Payment Type: {pendingOrder?.paymentType === "advance" ? "Advance" : "Full"}
                 </Typography>

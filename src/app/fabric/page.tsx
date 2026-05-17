@@ -1,18 +1,18 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Alert, Box, Skeleton, Snackbar, Stack, Typography } from "@mui/material";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import StraightenIcon from "@mui/icons-material/Straighten";
+import CheckroomIcon from "@mui/icons-material/Checkroom";
+import { Alert, Box, Button, Chip, Skeleton, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useGlobalLoading } from "@/context/LoadingContext";
-import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
 import Layout from "@/components/layout/Layout";
 import { CatalogProduct } from "@/services/productService";
 import { defaultFilters, ProductFilters } from "@/utils/filters";
 import { applyProductFilters } from "@/utils/filters";
-import { createPendingPaymentToken, savePendingPaymentOrder } from "@/utils/paymentSession";
 
 const FabricFilters = dynamic(
   () => import("@/features/fabric/components/FabricFilters"),
@@ -24,67 +24,78 @@ const FabricGrid = dynamic(
 
 export default function FabricPage() {
   const router = useRouter();
-  const { user } = useAuth();
-  const { trackAsync } = useGlobalLoading();
   const { products, loading, error: productsError } = useProducts({ category: "fabric" });
   const [filters, setFilters] = useState<ProductFilters>(defaultFilters);
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
+  const [unitFilter, setUnitFilter] = useState<"all" | "meter" | "piece">("all");
 
-  const filteredProducts = useMemo(() => applyProductFilters(products, filters), [filters, products]);
+  const filteredProducts = useMemo(() => {
+    const nextProducts = applyProductFilters(products, filters);
 
-  const handleSelectFabric = async (product: CatalogProduct) => {
-    setError("");
-
-    const userId = user?.uid || "guest-user";
-    const name = user?.displayName || "Customer";
-    const phone = user?.phoneNumber || "Not provided";
-
-    try {
-      const token = createPendingPaymentToken();
-
-      await trackAsync(
-        Promise.resolve(
-          savePendingPaymentOrder(token, {
-            service: "fabric",
-            userId,
-            customerName: name,
-            customerPhone: phone,
-            orderDetails: {
-              productId: product.id,
-              productName: product.name,
-              price: `${product.price}`,
-              type: product.type,
-            },
-            productId: product.id,
-            amount: product.price,
-            paymentType: "full",
-            whatsappDetails: [
-              `Product: ${product.name}`,
-              `Type: ${product.type}`,
-              `Price: INR ${product.price}`,
-            ],
-          }),
-        ),
-      );
-
-      setNotice("Payment page khul rahi hai...");
-      router.push(`/checkout?token=${encodeURIComponent(token)}`);
-    } catch {
-      setError("Payment page nahi khul payi. Dobara koshish karein.");
+    if (unitFilter === "all") {
+      return nextProducts;
     }
+
+    return nextProducts.filter((product) =>
+      unitFilter === "meter" ? product.productType === "fabric" : product.productType === "piece",
+    );
+  }, [filters, products, unitFilter]);
+
+  const handleOpenProductDetails = (product: CatalogProduct) => {
+    router.push(`/product/${encodeURIComponent(product.id)}?category=${encodeURIComponent(product.category)}`);
   };
 
   return (
     <Layout>
       <Stack spacing={3}>
-        <Typography variant="h3">Buy Cloth</Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }}>
+          <Typography variant="h3">Buy Febric</Typography>
+          <Button variant="outlined" onClick={() => router.push("/cart")}>Open Cart</Button>
+        </Stack>
         <Typography color="text.secondary">
           Find quality cloth at fair prices.
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Koi dikkat ho to WhatsApp karein. Hum madad ke liye yahan hain.
         </Typography>
+
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          alignItems={{ xs: "stretch", sm: "center" }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            Unit Filter:
+          </Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip
+              icon={<ViewModuleIcon />}
+              label="All"
+              clickable
+              color={unitFilter === "all" ? "primary" : "default"}
+              variant={unitFilter === "all" ? "filled" : "outlined"}
+              onClick={() => setUnitFilter("all")}
+              sx={{ borderRadius: 999, fontWeight: 600 }}
+            />
+            <Chip
+              icon={<StraightenIcon />}
+              label="Meter"
+              clickable
+              color={unitFilter === "meter" ? "primary" : "default"}
+              variant={unitFilter === "meter" ? "filled" : "outlined"}
+              onClick={() => setUnitFilter("meter")}
+              sx={{ borderRadius: 999, fontWeight: 600 }}
+            />
+            <Chip
+              icon={<CheckroomIcon />}
+              label="Piece"
+              clickable
+              color={unitFilter === "piece" ? "primary" : "default"}
+              variant={unitFilter === "piece" ? "filled" : "outlined"}
+              onClick={() => setUnitFilter("piece")}
+              sx={{ borderRadius: 999, fontWeight: 600 }}
+            />
+          </Stack>
+        </Stack>
 
         <Box sx={{ p: { xs: 2.5, md: 3 }, border: "1px solid", borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Delivery Charges:</Typography>
@@ -96,8 +107,6 @@ export default function FabricPage() {
         </Box>
 
         {productsError ? <Alert severity="warning">{productsError}</Alert> : null}
-
-        {error ? <Alert severity="error">{error}</Alert> : null}
 
         {loading ? (
           <Stack spacing={1.2} py={2}>
@@ -113,7 +122,11 @@ export default function FabricPage() {
             <FabricFilters filters={filters} onChange={setFilters} />
           </Grid>
           <Grid size={{ xs: 12, md: 8 }}>
-            <FabricGrid products={filteredProducts} onSelect={handleSelectFabric} />
+            <FabricGrid
+              products={filteredProducts}
+              onSelect={handleOpenProductDetails}
+              onOpenDetails={handleOpenProductDetails}
+            />
           </Grid>
           </Grid>
         ) : null}
@@ -122,12 +135,6 @@ export default function FabricPage() {
           <Alert severity="info">Abhi filter ke hisab se kapda nahi mila.</Alert>
         ) : null}
 
-        <Snackbar
-          open={Boolean(notice)}
-          autoHideDuration={2000}
-          onClose={() => setNotice("")}
-          message={notice}
-        />
       </Stack>
     </Layout>
   );

@@ -21,8 +21,8 @@ export default function Footer() {
       <Container maxWidth="lg">
         <Grid container spacing={3} alignItems="flex-start" sx={{ mb: 2 }}>
           <Grid size={{ xs: 12, md: 3 }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <RKStudioLogo size={40} variant="full" />
+            <Stack spacing={0.6} alignItems="flex-start">
+              <RKStudioLogo size={52} variant="full" />
             </Stack>
           </Grid>
 
@@ -83,7 +83,7 @@ export default function Footer() {
           <Typography variant="body2" color="text.secondary">
             © 2026 RK Studio. All rights reserved.
           </Typography>
-          <Typography variant="caption" color="text.secondary">Need help? Chat with us on WhatsApp.</Typography>
+          <Typography variant="caption" color="text.secondary">Need help? Chat with RK Studio on WhatsApp.</Typography>
         </Stack>
       </Container>
     </Box>

@@ -7,6 +7,7 @@ import {
   Box,
   Button,
   Card,
+  Chip,
   CardContent,
   InputLabel,
   MenuItem,
@@ -22,12 +23,19 @@ import {
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import Grid from "@mui/material/Grid2";
 import { ChangeEvent, DragEvent, useMemo, useState } from "react";
 import RKStudioLogo from "@/components/common/RKStudioLogo";
 import Layout from "@/components/layout/Layout";
 import { useGlobalLoading } from "@/context/LoadingContext";
 import { useProducts } from "@/hooks/useProducts";
+import {
+  analyzeProductImageWithAI,
+  analyzeProductImageWithVisionAPI,
+  AiDetectedProduct,
+} from "@/utils/aiProductDetection";
 import {
   addProduct,
   CatalogProduct,
@@ -40,10 +48,12 @@ import {
 type FormState = {
   name: string;
   price: string;
+  productType: "fabric" | "piece";
   type: string;
   category: ProductCategory;
   image: string;
   tag: string;
+  description: string;
   discountPercent: string;
   rating: string;
 };
@@ -51,10 +61,12 @@ type FormState = {
 const initialForm: FormState = {
   name: "",
   price: "",
+  productType: "fabric",
   type: "",
   category: "fabric",
   image: "",
   tag: "daily wear",
+  description: "",
   discountPercent: "0",
   rating: "4.5",
 };
@@ -118,11 +130,26 @@ export default function AdminProductsManagement() {
   const [imagePreview, setImagePreview] = useState("");
   const [draggingImage, setDraggingImage] = useState(false);
   const [compressionInfo, setCompressionInfo] = useState("");
+  const [analyzingImage, setAnalyzingImage] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<AiDetectedProduct | null>(null);
+  const [aiSuggestedFields, setAiSuggestedFields] = useState<Record<string, boolean>>({});
+  const [lastUploadedFile, setLastUploadedFile] = useState<File | null>(null);
+  const [aiEngine, setAiEngine] = useState<"vision" | "fallback" | "none">("none");
 
   const submitLabel = useMemo(() => (editingId ? "Product update karein" : "Product jodein"), [editingId]);
 
   const setField = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    setAiSuggestedFields((prev) => {
+      if (!prev[field]) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [field]: false,
+      };
+    });
   };
 
   const resetForm = () => {
@@ -134,6 +161,10 @@ export default function AdminProductsManagement() {
     setEditingId("");
     setImagePreview("");
     setCompressionInfo("");
+    setAiSuggestion(null);
+    setAiSuggestedFields({});
+    setLastUploadedFile(null);
+    setAiEngine("none");
   };
 
   const clearSelectedImage = () => {
@@ -144,6 +175,66 @@ export default function AdminProductsManagement() {
     setField("image", "");
     setImagePreview("");
     setCompressionInfo("");
+    setAiSuggestion(null);
+    setAiSuggestedFields({});
+    setLastUploadedFile(null);
+    setAiEngine("none");
+  };
+
+  const applyAiSuggestion = (suggestion: AiDetectedProduct) => {
+    setForm((prev) => ({
+      ...prev,
+      name: suggestion.name,
+      productType: suggestion.productType,
+      category: suggestion.category,
+      type: suggestion.type,
+      description: suggestion.description,
+      price: String(suggestion.suggestedPrice),
+    }));
+
+    setAiSuggestion(suggestion);
+    setAiSuggestedFields({
+      name: true,
+      productType: true,
+      category: true,
+      type: true,
+      description: true,
+      price: true,
+    });
+  };
+
+  const runAiDetection = async (file?: File) => {
+    try {
+      setAnalyzingImage(true);
+      let suggestion: AiDetectedProduct;
+
+      if (file) {
+        try {
+          suggestion = await analyzeProductImageWithVisionAPI(file);
+          setAiEngine("vision");
+        } catch {
+          suggestion = await analyzeProductImageWithAI({
+            file,
+            fallbackText: `${form.name} ${form.type} ${form.tag}`,
+          });
+          setAiEngine("fallback");
+          setNotice("Vision API unavailable, local AI suggestion apply ki gayi.");
+        }
+      } else {
+        suggestion = await analyzeProductImageWithAI({
+          file,
+          fallbackText: `${form.name} ${form.type} ${form.tag}`,
+        });
+        setAiEngine("fallback");
+      }
+
+      applyAiSuggestion(suggestion);
+      setNotice("AI analysis complete. Fields pre-fill ho gaye.");
+    } catch {
+      setError("AI image analysis abhi complete nahi ho paayi. Dobara try karein.");
+    } finally {
+      setAnalyzingImage(false);
+    }
   };
 
   const validate = () => {
@@ -180,10 +271,12 @@ export default function AdminProductsManagement() {
       const payload = {
         name: form.name.trim(),
         price: Number(form.price),
+        productType: form.productType,
         type: form.type.trim().toLowerCase(),
         category: form.category,
         image: form.image.trim(),
         tag: form.tag.trim(),
+        description: form.description.trim(),
         discountPercent: Number(form.discountPercent),
         rating: Number(form.rating),
       };
@@ -226,6 +319,9 @@ export default function AdminProductsManagement() {
       }
 
       setImagePreview(URL.createObjectURL(compressed));
+      setLastUploadedFile(compressed);
+
+      await runAiDetection(compressed);
 
       if (compressed.size < file.size) {
         const fromKb = Math.round(file.size / 1024);
@@ -276,10 +372,12 @@ export default function AdminProductsManagement() {
     setForm({
       name: product.name,
       price: String(product.price),
+      productType: product.productType,
       type: product.type,
       category: product.category,
       image: product.image,
       tag: product.tag,
+      description: product.description || "",
       discountPercent: String(product.discountPercent || 0),
       rating: String(product.rating || 4.5),
     });
@@ -290,6 +388,10 @@ export default function AdminProductsManagement() {
 
     setImagePreview(product.image);
     setCompressionInfo("");
+    setAiSuggestion(null);
+    setAiSuggestedFields({});
+    setLastUploadedFile(null);
+    setAiEngine("none");
   };
 
   const handleDelete = async (id: string) => {
@@ -351,9 +453,54 @@ export default function AdminProductsManagement() {
             <Stack spacing={2}>
               <Typography variant="h5">Product jodein</Typography>
 
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "flex-start", sm: "center" }}>
+                <Chip
+                  icon={<PsychologyOutlinedIcon />}
+                  label={analyzingImage ? "Analyzing image..." : "AI Assist enabled"}
+                  color={analyzingImage ? "warning" : "primary"}
+                  variant={analyzingImage ? "filled" : "outlined"}
+                />
+                {aiSuggestion ? (
+                  <Chip
+                    icon={<AutoAwesomeOutlinedIcon />}
+                    label={`AI Confidence: ${aiSuggestion.confidence}%`}
+                    color="success"
+                    variant="outlined"
+                  />
+                ) : null}
+                {aiEngine !== "none" ? (
+                  <Chip
+                    label={aiEngine === "vision" ? "Engine: Vision API" : "Engine: Local Fallback"}
+                    color={aiEngine === "vision" ? "info" : "warning"}
+                    variant="outlined"
+                  />
+                ) : null}
+                <Button
+                  variant="outlined"
+                  startIcon={<AutoAwesomeOutlinedIcon />}
+                  disabled={analyzingImage || uploadingImage || !lastUploadedFile}
+                  onClick={() => runAiDetection(lastUploadedFile || undefined)}
+                >
+                  Regenerate with AI
+                </Button>
+              </Stack>
+
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField label="Naam" value={form.name} onChange={(e) => setField("name", e.target.value)} fullWidth />
-                <TextField label="Price (INR)" type="number" value={form.price} onChange={(e) => setField("price", e.target.value)} fullWidth />
+                <TextField
+                  label="Naam"
+                  value={form.name}
+                  onChange={(e) => setField("name", e.target.value)}
+                  helperText={aiSuggestedFields.name ? "AI Suggested" : ""}
+                  fullWidth
+                />
+                <TextField
+                  label={form.productType === "fabric" ? "Price per meter (INR)" : "Price per piece (INR)"}
+                  type="number"
+                  value={form.price}
+                  onChange={(e) => setField("price", e.target.value)}
+                  helperText={aiSuggestedFields.price ? "AI Suggested" : ""}
+                  fullWidth
+                />
               </Stack>
 
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -362,12 +509,63 @@ export default function AdminProductsManagement() {
               </Stack>
 
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField label="Type" value={form.type} onChange={(e) => setField("type", e.target.value)} fullWidth />
-                <TextField select label="Category" value={form.category} onChange={(e) => setField("category", e.target.value)} fullWidth>
+                <TextField
+                  select
+                  label="Product Type"
+                  value={form.productType}
+                  onChange={(e) => setField("productType", e.target.value)}
+                  helperText={aiSuggestedFields.productType ? "AI Suggested" : ""}
+                  fullWidth
+                >
+                  <MenuItem value="fabric">Fabric (meter based)</MenuItem>
+                  <MenuItem value="piece">Piece (ready-made suit)</MenuItem>
+                </TextField>
+                <TextField
+                  label="Type"
+                  value={form.type}
+                  onChange={(e) => setField("type", e.target.value)}
+                  helperText={aiSuggestedFields.type ? "AI Suggested" : ""}
+                  fullWidth
+                />
+                <TextField select label="Category" value={form.category} onChange={(e) => setField("category", e.target.value)} helperText={aiSuggestedFields.category ? "AI Suggested" : ""} fullWidth>
                   <MenuItem value="fabric">Fabric</MenuItem>
                   <MenuItem value="dupatta">Dupatta</MenuItem>
                 </TextField>
               </Stack>
+
+              <TextField
+                label="Description"
+                multiline
+                minRows={2}
+                value={form.description}
+                onChange={(e) => setField("description", e.target.value)}
+                helperText={aiSuggestedFields.description ? "AI Suggested" : ""}
+                fullWidth
+              />
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "flex-start", sm: "center" }}>
+                <Typography variant="body2" color="text.secondary">
+                  {form.productType === "fabric"
+                    ? "Auto UI: Price per meter and meter selection enabled"
+                    : "Auto UI: Price per piece and quantity selector enabled"}
+                </Typography>
+                {aiSuggestion ? (
+                  <Chip
+                    label={aiSuggestion.recommendedUsage}
+                    size="small"
+                    color="secondary"
+                    variant="outlined"
+                  />
+                ) : null}
+              </Stack>
+
+              {aiSuggestion?.matchingItems?.length ? (
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  {aiSuggestion.matchingItems.map((item) => (
+                    <Chip key={item} label={item} size="small" variant="outlined" />
+                  ))}
+                </Stack>
+              ) : null}
 
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField label="Tag" value={form.tag} onChange={(e) => setField("tag", e.target.value)} fullWidth />
@@ -395,7 +593,11 @@ export default function AdminProductsManagement() {
                   >
                     <CloudUploadOutlinedIcon color={draggingImage ? "primary" : "action"} />
                     <Typography variant="body2" color="text.secondary">
-                      {uploadingImage ? "Image upload ho rahi hai..." : "Image yahan drop karein ya click karke chune"}
+                      {analyzingImage
+                        ? "Analyzing image..."
+                        : uploadingImage
+                          ? "Image upload ho rahi hai..."
+                          : "Image yahan drop karein ya click karke chune"}
                     </Typography>
                     <input hidden type="file" accept="image/*" onChange={handleImageFileChange} />
                   </Box>
@@ -406,6 +608,12 @@ export default function AdminProductsManagement() {
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <CircularProgress size={18} />
                       <Typography variant="body2" color="text.secondary">Firebase Storage me upload ho rahi hai...</Typography>
+                    </Stack>
+                  ) : null}
+                  {analyzingImage ? (
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <CircularProgress size={18} />
+                      <Typography variant="body2" color="text.secondary">Analyzing image...</Typography>
                     </Stack>
                   ) : null}
                   {compressionInfo ? (

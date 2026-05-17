@@ -29,8 +29,9 @@ import { isAdminUser } from "@/utils/admin";
 const navLinks = [
   { label: "Home", href: "/" },
   { label: "Stitch", href: "/tailoring" },
-  { label: "Cloth", href: "/fabric" },
+  { label: "Febric", href: "/fabric" },
   { label: "Dupatta", href: "/dupatta" },
+  { label: "Cart", href: "/cart" },
 ];
 
 export default function Navbar() {

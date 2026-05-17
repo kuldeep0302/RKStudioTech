@@ -1,4 +1,4 @@
-export type PendingPaymentService = "tailoring" | "fabric";
+export type PendingPaymentService = "tailoring" | "fabric" | "dupatta";
 
 export type PendingPaymentOrder = {
   service: PendingPaymentService;
