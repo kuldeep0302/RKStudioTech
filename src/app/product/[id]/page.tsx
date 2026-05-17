@@ -25,7 +25,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { useProducts } from "@/hooks/useProducts";
-import { ProductCategory } from "@/services/productService";
+import { getProductById, ProductCategory } from "@/services/productService";
 import { trackAnalyticsEvent } from "@/utils/analytics";
 import { formatINR } from "@/utils/currency";
 import { addFabricItemToCart } from "@/utils/fabricCart";
@@ -46,21 +46,55 @@ export default function ProductDetailsPage() {
   const [notice, setNotice] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [pricePulse, setPricePulse] = useState(false);
+  const [fallbackProduct, setFallbackProduct] = useState<Awaited<ReturnType<typeof getProductById>>>(null);
+  const [fallbackLoading, setFallbackLoading] = useState(true);
   const lastTrackedProductId = useRef<string | null>(null);
 
   const product = useMemo(
     () => products.find((item) => item.id === params.id),
     [params.id, products],
   );
+  const resolvedProduct = product || fallbackProduct;
 
-  const discountPercentage = product?.discountPercentage ?? 5;
-  const pricePerUnit = product?.pricePerUnit ?? product?.price ?? 0;
-  const marketPrice = product?.marketPrice ?? product?.price ?? 0;
-  const discountedPrice = product
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFallbackProduct = async () => {
+      if (product || !params.id) {
+        setFallbackLoading(false);
+        return;
+      }
+
+      setFallbackLoading(true);
+
+      try {
+        const directProduct = await getProductById(params.id);
+
+        if (!cancelled) {
+          setFallbackProduct(directProduct);
+        }
+      } finally {
+        if (!cancelled) {
+          setFallbackLoading(false);
+        }
+      }
+    };
+
+    void loadFallbackProduct();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id, product]);
+
+  const discountPercentage = resolvedProduct?.discountPercentage ?? 5;
+  const pricePerUnit = resolvedProduct?.pricePerUnit ?? resolvedProduct?.price ?? 0;
+  const marketPrice = resolvedProduct?.marketPrice ?? resolvedProduct?.price ?? 0;
+  const discountedPrice = resolvedProduct
     ? Math.max(0, Math.round(pricePerUnit * (1 - discountPercentage / 100)))
     : 0;
 
-  const isMeterBased = (product?.pricingType || (product?.productType === "fabric" ? "meter" : "piece")) === "meter";
+  const isMeterBased = (resolvedProduct?.pricingType || (resolvedProduct?.productType === "fabric" ? "meter" : "piece")) === "meter";
   const unitLabel = isMeterBased ? "meter" : "piece";
   const helperText = isMeterBased
     ? "Kurti ke liye approx 2.5 meter chahiye"
@@ -69,24 +103,24 @@ export default function ProductDetailsPage() {
   const totalPrice = Math.round(discountedPrice * selectedQuantity);
 
   useEffect(() => {
-    if (!product) {
+    if (!resolvedProduct) {
       return;
     }
 
-    if (lastTrackedProductId.current === product.id) {
+    if (lastTrackedProductId.current === resolvedProduct.id) {
       return;
     }
 
-    lastTrackedProductId.current = product.id;
+    lastTrackedProductId.current = resolvedProduct.id;
 
     void trackAnalyticsEvent("product_view", {
-      product_id: product.id,
-      product_name: product.name,
-      category: product.category,
-      product_type: product.productType,
+      product_id: resolvedProduct.id,
+      product_name: resolvedProduct.name,
+      category: resolvedProduct.category,
+      product_type: resolvedProduct.productType,
       price_per_unit: discountedPrice,
     });
-  }, [discountedPrice, product]);
+  }, [discountedPrice, resolvedProduct]);
 
   const updateQuantity = (next: number) => {
     const baseValue = Number.isFinite(next) ? Math.max(1, next) : 1;
@@ -101,31 +135,31 @@ export default function ProductDetailsPage() {
     setError("");
 
     try {
-      if (!product) {
+      if (!resolvedProduct) {
         return;
       }
 
       addFabricItemToCart({
-        productId: product.id,
-        name: product.name,
-        image: product.image,
-        category: product.category,
-        product_type: product.productType,
+        productId: resolvedProduct.id,
+        name: resolvedProduct.name,
+        image: resolvedProduct.image,
+        category: resolvedProduct.category,
+        product_type: resolvedProduct.productType,
         pricing_type: isMeterBased ? "meter" : "piece",
         price_per_unit: discountedPrice,
         market_price: marketPrice,
         discount_percentage: discountPercentage,
-        advance_percentage: product.advancePercentage ?? 20,
+        advance_percentage: resolvedProduct.advancePercentage ?? 20,
         selected_quantity: selectedQuantity,
-        description: product.description,
-        type: product.type,
+        description: resolvedProduct.description,
+        type: resolvedProduct.type,
       });
 
       void trackAnalyticsEvent("add_to_cart", {
-        product_id: product.id,
-        product_name: product.name,
-        category: product.category,
-        product_type: product.productType,
+        product_id: resolvedProduct.id,
+        product_name: resolvedProduct.name,
+        category: resolvedProduct.category,
+        product_type: resolvedProduct.productType,
         quantity: selectedQuantity,
         value: totalPrice,
       });
@@ -173,18 +207,18 @@ export default function ProductDetailsPage() {
           </Stack>
         ) : null}
 
-        {!loading && !product ? (
+        {!loading && !fallbackLoading && !resolvedProduct ? (
           <Alert severity="warning">Product not found. Please select from the list again.</Alert>
         ) : null}
 
-        {!loading && product ? (
+        {!loading && resolvedProduct ? (
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 6 }}>
               <Card sx={{ overflow: "hidden" }}>
                 <Box sx={{ position: "relative", width: "100%", height: { xs: 300, md: 420 } }}>
                   <Image
-                    src={product.image}
-                    alt={product.name}
+                    src={resolvedProduct.image}
+                    alt={resolvedProduct.name}
                     fill
                     sizes="(max-width: 900px) 100vw, 50vw"
                     style={{ objectFit: "cover" }}
@@ -196,11 +230,11 @@ export default function ProductDetailsPage() {
             <Grid size={{ xs: 12, md: 6 }}>
               <Stack spacing={2}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                  {product.name}
+                  {resolvedProduct.name}
                 </Typography>
 
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip label={product.inStock === false ? "Out of stock" : "In stock"} color={product.inStock === false ? "default" : "success"} />
+                  <Chip label={resolvedProduct.inStock === false ? "Out of stock" : "In stock"} color={resolvedProduct.inStock === false ? "default" : "success"} />
                   {isMeterBased ? (
                     <Chip label="Sold per meter" color="warning" />
                   ) : (
@@ -211,14 +245,14 @@ export default function ProductDetailsPage() {
 
                 <Stack direction="row" alignItems="center" spacing={0.7}>
                   <Rating
-                    value={product.rating || 0}
+                    value={resolvedProduct.rating || 0}
                     precision={0.1}
                     readOnly
                     icon={<StarRoundedIcon fontSize="inherit" />}
                     emptyIcon={<StarRoundedIcon fontSize="inherit" />}
                   />
                   <Typography variant="body2" color="text.secondary">
-                    {(product.rating || 0).toFixed(1)} / 5
+                    {(resolvedProduct.rating || 0).toFixed(1)} / 5
                   </Typography>
                 </Stack>
 
@@ -242,20 +276,20 @@ export default function ProductDetailsPage() {
                     Details
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {product.description || `${product.tag || "daily wear"} ${product.type}.`}
+                    {resolvedProduct.description || `${resolvedProduct.tag || "daily wear"} ${resolvedProduct.type}.`}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Type: {product.type}
+                    Type: {resolvedProduct.type}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Tag: {product.tag}
+                    Tag: {resolvedProduct.tag}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Available stock: {product.inStock === false ? "Out of stock" : "In stock"}
+                    Available stock: {resolvedProduct.inStock === false ? "Out of stock" : "In stock"}
                   </Typography>
-                  {product.suggestion ? (
+                  {resolvedProduct.suggestion ? (
                     <Typography variant="body2" color="text.secondary">
-                      Suggestion: {product.suggestion}
+                      Suggestion: {resolvedProduct.suggestion}
                     </Typography>
                   ) : null}
                   <Typography variant="caption" color="text.secondary">
@@ -336,7 +370,7 @@ export default function ProductDetailsPage() {
                 <Button
                   variant="contained"
                   startIcon={<ShoppingCartIcon />}
-                  disabled={product.inStock === false}
+                  disabled={resolvedProduct.inStock === false}
                   onClick={handleAddToCart}
                   sx={{ mt: 1, width: { xs: "100%", sm: "auto" } }}
                 >

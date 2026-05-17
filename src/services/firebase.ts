@@ -24,7 +24,7 @@ let firebaseApp: FirebaseApp | null = null;
 let firebaseAnalytics: Analytics | null = null;
 
 export const getFirebaseApp = (): FirebaseApp | null => {
-  if (typeof window === "undefined" || !isFirebaseConfigured) {
+  if (!isFirebaseConfigured) {
     return null;
   }
 
