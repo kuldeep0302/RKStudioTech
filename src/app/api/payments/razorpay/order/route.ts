@@ -1,13 +1,25 @@
 import { NextResponse } from "next/server";
 import { RK_STUDIO } from "@/utils/constants";
-
-type CreateOrderPayload = {
-  amount?: number;
-  receipt?: string;
-};
+import { checkRateLimit } from "@/utils/server/rateLimit";
+import { createRazorpayOrderSchema, getZodErrorMessage } from "@/utils/server/paymentValidation";
 
 export async function POST(request: Request) {
   try {
+    if (process.env.RAZORPAY_ENABLED !== "true") {
+      return NextResponse.json({ error: "Razorpay is disabled." }, { status: 503 });
+    }
+
+    const rateLimitResponse = checkRateLimit({
+      request,
+      key: "razorpay_order",
+      maxRequests: 20,
+      windowMs: 60_000,
+    });
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
@@ -18,22 +30,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as CreateOrderPayload;
-    const amount = Number(body.amount || 0);
-    const receipt = typeof body.receipt === "string" ? body.receipt.trim() : "";
+    const rawBody = (await request.json()) as unknown;
+    const parsed = createRazorpayOrderSchema.safeParse(rawBody);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: getZodErrorMessage(parsed.error) }, { status: 400 });
     }
 
-    if (receipt && !/^[a-zA-Z0-9_-]{3,64}$/.test(receipt)) {
-      return NextResponse.json({ error: "Invalid receipt value." }, { status: 400 });
-    }
+    const { amount, receipt } = parsed.data;
 
     const payload = {
       amount: Math.round(amount * 100),
       currency: RK_STUDIO.payment.currency,
-      receipt: receipt || `rkstudio_${Date.now()}`,
+      receipt: receipt ?? `rkstudio_${Date.now()}`,
       payment_capture: 1,
     };
 

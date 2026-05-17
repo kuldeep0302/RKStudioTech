@@ -41,6 +41,27 @@ type RazorpayOptions = {
 };
 
 const RAZORPAY_SCRIPT_URL = "https://checkout.razorpay.com/v1/checkout.js";
+let cachedRazorpayKey: string | null = null;
+
+export const getRazorpayKeyId = async () => {
+  if (cachedRazorpayKey) {
+    return cachedRazorpayKey;
+  }
+
+  const response = await fetch("/api/payments/razorpay/config", {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const payload = (await response.json()) as { enabled?: boolean; keyId?: string };
+
+  if (!response.ok || !payload.enabled || !payload.keyId) {
+    throw new Error("Razorpay key is missing on server.");
+  }
+
+  cachedRazorpayKey = payload.keyId;
+  return cachedRazorpayKey;
+};
 
 const loadRazorpayScript = async () => {
   if (typeof window === "undefined") {
@@ -84,11 +105,7 @@ export const startRazorpayPayment = async ({
   customerName?: string;
   customerPhone?: string;
 }) => {
-  const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-
-  if (!key) {
-    throw new Error("Razorpay key is missing. Add NEXT_PUBLIC_RAZORPAY_KEY_ID.");
-  }
+  const key = await getRazorpayKeyId();
 
   await loadRazorpayScript();
 

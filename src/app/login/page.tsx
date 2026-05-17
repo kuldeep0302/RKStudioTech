@@ -13,6 +13,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { FirebaseError } from "firebase/app";
 import { ConfirmationResult } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -22,6 +23,7 @@ import { useGlobalLoading } from "@/context/LoadingContext";
 import { useAuth } from "@/hooks/useAuth";
 import { isFirebaseConfigured } from "@/services/firebase";
 import {
+  MOCK_OTP,
   createMockUser,
   normalizeIndianPhone,
   saveMockUserToFirestore,
@@ -32,6 +34,49 @@ import {
 } from "@/services/authService";
 import { UserRole } from "@/types/auth";
 import { isAdminPhone } from "@/utils/admin";
+
+const mapOtpErrorMessage = (error: unknown) => {
+  if (!(error instanceof FirebaseError)) {
+    return "OTP bhejne me dikkat aayi. Kripya thodi der baad dobara try karein.";
+  }
+
+  switch (error.code) {
+    case "auth/invalid-phone-number":
+      return "Phone number sahi format me dalein.";
+    case "auth/too-many-requests":
+      return "Bahut zyada attempts hue. Thodi der baad phir try karein.";
+    case "auth/captcha-check-failed":
+      return "Verification complete nahi ho paya. Page refresh karke dobara try karein.";
+    case "auth/network-request-failed":
+      return "Network issue hai. Internet check karke dobara try karein.";
+    case "auth/unauthorized-domain":
+    case "auth/configuration-not-found":
+    case "auth/billing-not-enabled":
+    case "auth/invalid-app-credential":
+      return "Is waqt OTP service available nahi hai. Kripya support se sampark karein.";
+    default:
+      return "OTP bhejne me dikkat aayi. Kripya thodi der baad dobara try karein.";
+  }
+};
+
+const mapVerifyOtpErrorMessage = (error: unknown) => {
+  if (!(error instanceof FirebaseError)) {
+    return "OTP verify nahi hua. Dobara koshish karein.";
+  }
+
+  switch (error.code) {
+    case "auth/invalid-verification-code":
+      return "OTP galat hai. Sahi code dal kar dobara try karein.";
+    case "auth/code-expired":
+      return "OTP expire ho gaya. Naya OTP bhej kar try karein.";
+    case "auth/session-expired":
+      return "Session expire ho gayi. Naya OTP bhej kar phir verify karein.";
+    case "auth/network-request-failed":
+      return "Network issue hai. Internet check karke dobara try karein.";
+    default:
+      return "OTP verify nahi ho paya. Kripya dobara koshish karein.";
+  }
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -82,8 +127,8 @@ export default function LoginPage() {
       confirmationResultRef.current = await trackAsync(sendOtpToPhone(formattedPhone));
       setPhone(formattedPhone);
       setOtpSent(true);
-    } catch {
-      setError("OTP bhejne me dikkat aayi. Number ya Firebase setup check karein.");
+    } catch (otpError) {
+      setError(mapOtpErrorMessage(otpError));
     } finally {
       setBusy(false);
     }
@@ -126,8 +171,8 @@ export default function LoginPage() {
       }
 
       router.replace(role === "admin" ? "/admin" : "/");
-    } catch {
-      setError("OTP verify nahi hua. Dobara koshish karein.");
+    } catch (verifyError) {
+      setError(mapVerifyOtpErrorMessage(verifyError));
     } finally {
       setBusy(false);
     }
@@ -205,7 +250,7 @@ export default function LoginPage() {
               {otpSent ? (
                 <TextField
                   label="OTP"
-                  placeholder={useMockOtp ? "1234 dalein" : "6-digit code dalein"}
+                  placeholder={useMockOtp ? "Testing OTP dalein" : "6-digit code dalein"}
                   value={otp}
                   onChange={(event) => setOtp(event.target.value)}
                 />
@@ -222,7 +267,7 @@ export default function LoginPage() {
 
               {useMockOtp ? (
                 <Alert severity="info">
-                  Testing ke liye Mock OTP mode chalu hai.
+                  Testing ke liye Mock OTP mode chalu hai. Test OTP: {MOCK_OTP || "set nahi hai"}
                 </Alert>
               ) : null}
 

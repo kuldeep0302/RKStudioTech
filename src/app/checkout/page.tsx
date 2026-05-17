@@ -33,7 +33,9 @@ export default function CheckoutPage() {
   const [pendingOrder, setPendingOrder] = useState<ReturnType<typeof readPendingPaymentOrder>>(null);
   const [whatsappUrl, setWhatsappUrl] = useState("");
   const [orderConfirmed, setOrderConfirmed] = useState(false);
-  const razorpayEnabled = Boolean(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+  const [razorpayEnabled, setRazorpayEnabled] = useState(false);
+  const [paymentConfigLoading, setPaymentConfigLoading] = useState(true);
+  const allowUpiFallback = Boolean(RK_STUDIO.payment.upiId);
 
   useEffect(() => {
     if (!token) {
@@ -62,10 +64,48 @@ export default function CheckoutPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!razorpayEnabled) {
-      setPaymentMethod("upi");
-    }
-  }, [razorpayEnabled]);
+    let ignore = false;
+
+    const loadRazorpayConfig = async () => {
+      try {
+        const response = await fetch("/api/payments/razorpay/config", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as { enabled?: boolean };
+
+        if (ignore) {
+          return;
+        }
+
+        const enabled = Boolean(response.ok && payload.enabled);
+        setRazorpayEnabled(enabled);
+
+        if (!enabled && allowUpiFallback) {
+          setPaymentMethod("upi");
+        }
+      } catch {
+        if (ignore) {
+          return;
+        }
+
+        setRazorpayEnabled(false);
+        if (allowUpiFallback) {
+          setPaymentMethod("upi");
+        }
+      } finally {
+        if (!ignore) {
+          setPaymentConfigLoading(false);
+        }
+      }
+    };
+
+    void loadRazorpayConfig();
+
+    return () => {
+      ignore = true;
+    };
+  }, [allowUpiFallback]);
 
   const finalAmount = useMemo(() => {
     if (!pendingOrder) {
@@ -251,6 +291,11 @@ export default function CheckoutPage() {
         return;
       }
 
+      if (!allowUpiFallback) {
+        setError("UPI fallback production me disabled hai. Razorpay use karein.");
+        return;
+      }
+
       if (!upiStarted) {
         const upiLink = buildUpiPaymentLink({
           amount: finalAmount,
@@ -308,6 +353,12 @@ export default function CheckoutPage() {
           <CardContent>
             <Stack spacing={2.5}>
               <Typography variant="h5">{renderTitle()}</Typography>
+
+              {!paymentConfigLoading && !razorpayEnabled ? (
+                <Alert severity="warning">
+                  Online card payment is temporarily unavailable. Please continue with UPI payment.
+                </Alert>
+              ) : null}
 
               {pendingOrder?.service === "tailoring" ? (
                 <FormControl>
@@ -371,15 +422,22 @@ export default function CheckoutPage() {
                     value="razorpay"
                     control={<Radio />}
                     label="Razorpay (best)"
-                    disabled={!razorpayEnabled}
+                    disabled={!razorpayEnabled || paymentConfigLoading}
                   />
-                  <FormControlLabel value="upi" control={<Radio />} label="UPI" />
+                  <FormControlLabel
+                    value="upi"
+                    control={<Radio />}
+                    label={allowUpiFallback ? "UPI" : "UPI (dev only)"}
+                    disabled={!allowUpiFallback || paymentConfigLoading}
+                  />
                 </RadioGroup>
               </FormControl>
 
               {!razorpayEnabled ? (
                 <Alert severity="info">
-                  Razorpay abhi setup nahi hai. Filhal UPI mode chalu hai.
+                  {allowUpiFallback
+                    ? "Razorpay abhi setup nahi hai. Filhal UPI mode chalu hai."
+                    : "Razorpay setup missing hai. Production payment ke liye Razorpay configure karein."}
                 </Alert>
               ) : null}
 

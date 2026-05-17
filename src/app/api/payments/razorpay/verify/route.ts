@@ -1,14 +1,28 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
-
-type VerifyPayload = {
-  razorpay_order_id?: string;
-  razorpay_payment_id?: string;
-  razorpay_signature?: string;
-};
+import { checkRateLimit } from "@/utils/server/rateLimit";
+import {
+  getZodErrorMessage,
+  verifyRazorpayPaymentSchema,
+} from "@/utils/server/paymentValidation";
 
 export async function POST(request: Request) {
   try {
+    if (process.env.RAZORPAY_ENABLED !== "true") {
+      return NextResponse.json({ verified: false, error: "Razorpay is disabled." }, { status: 503 });
+    }
+
+    const rateLimitResponse = checkRateLimit({
+      request,
+      key: "razorpay_verify",
+      maxRequests: 30,
+      windowMs: 60_000,
+    });
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!keySecret) {
@@ -18,20 +32,24 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as VerifyPayload;
-    const razorpay_order_id = (body.razorpay_order_id || "").trim();
-    const razorpay_payment_id = (body.razorpay_payment_id || "").trim();
-    const razorpay_signature = (body.razorpay_signature || "").trim();
+    const rawBody = (await request.json()) as unknown;
+    const parsed = verifyRazorpayPaymentSchema.safeParse(rawBody);
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    if (!parsed.success) {
       return NextResponse.json(
         {
           verified: false,
-          error: "Missing payment verification fields: razorpay_order_id, razorpay_payment_id, razorpay_signature.",
+          error: getZodErrorMessage(parsed.error),
         },
         { status: 400 },
       );
     }
+
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    } = parsed.data;
 
     const payload = `${razorpay_order_id}|${razorpay_payment_id}`;
     const expectedSignature = crypto.createHmac("sha256", keySecret).update(payload).digest("hex");

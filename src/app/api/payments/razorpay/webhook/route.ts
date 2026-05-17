@@ -1,5 +1,10 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/utils/server/rateLimit";
+import {
+  getZodErrorMessage,
+  razorpayWebhookEnvelopeSchema,
+} from "@/utils/server/paymentValidation";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Razorpay Webhook Handler
@@ -14,6 +19,21 @@ import { NextResponse } from "next/server";
 // ──────────────────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
+  if (process.env.RAZORPAY_ENABLED !== "true") {
+    return NextResponse.json({ error: "Razorpay is disabled." }, { status: 503 });
+  }
+
+  const rateLimitResponse = checkRateLimit({
+    request,
+    key: "razorpay_webhook",
+    maxRequests: 120,
+    windowMs: 60_000,
+  });
+
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
@@ -53,7 +73,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const eventType = event.event as string | undefined;
+  const envelope = razorpayWebhookEnvelopeSchema.safeParse(event);
+
+  if (!envelope.success) {
+    return NextResponse.json({ error: getZodErrorMessage(envelope.error) }, { status: 400 });
+  }
+
+  const eventType = envelope.data.event;
 
   switch (eventType) {
     case "payment.captured":
