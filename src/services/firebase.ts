@@ -26,6 +26,7 @@ let firebaseApp: FirebaseApp | null = null;
 let firebaseAnalytics: Analytics | null = null;
 let firebaseConfigWarningShown = false;
 let firebaseEnvDebugLogged = false;
+const firebaseRuntimeVersion = "runtime-check-v2";
 
 type FirebaseConfigValidation = {
   missingKeys: string[];
@@ -122,12 +123,12 @@ const logFirebaseEnvDebug = (runtimeConfig: FirebaseRuntimeConfig) => {
   }
 
   const debugValues = {
-    NEXT_PUBLIC_FIREBASE_API_KEY: maskEnvValue(runtimeConfig.config.apiKey),
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: runtimeConfig.config.authDomain,
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: runtimeConfig.config.projectId,
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: runtimeConfig.config.storageBucket,
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: maskEnvValue(runtimeConfig.config.messagingSenderId),
-    NEXT_PUBLIC_FIREBASE_APP_ID: maskEnvValue(runtimeConfig.config.appId),
+    NEXT_PUBLIC_FIREBASE_API_KEY: maskEnvValue(runtimeConfig.requiredConfig.apiKey),
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: runtimeConfig.requiredConfig.authDomain,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: runtimeConfig.requiredConfig.projectId,
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: runtimeConfig.requiredConfig.storageBucket,
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: maskEnvValue(runtimeConfig.requiredConfig.messagingSenderId),
+    NEXT_PUBLIC_FIREBASE_APP_ID: maskEnvValue(runtimeConfig.requiredConfig.appId),
   };
 
   const legacyKeysFound = Object.keys(legacyFirebaseEnvAliases).filter((legacyKey) => {
@@ -136,6 +137,7 @@ const logFirebaseEnvDebug = (runtimeConfig: FirebaseRuntimeConfig) => {
   });
 
   console.info("[firebase] env debug", {
+    version: firebaseRuntimeVersion,
     configured: runtimeConfig.configured,
     missingKeys: runtimeConfig.missingKeys,
     values: debugValues,
