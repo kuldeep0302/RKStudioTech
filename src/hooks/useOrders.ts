@@ -8,6 +8,7 @@ import {
   subscribeToUserOrders,
   UserOrder,
 } from "@/services/orderService";
+import { readMockOrdersForUser } from "@/utils/mockOrderStore";
 
 type UseOrdersParams = {
   mode: "user" | "all" | "phone";
@@ -37,7 +38,11 @@ export const useOrders = ({ mode, userId, phone, mockMode = false }: UseOrdersPa
     }
 
     if (mockMode || userId?.startsWith("mock-")) {
-      setOrders([]);
+      if (mode === "user" && userId) {
+        setOrders(readMockOrdersForUser(userId));
+      } else {
+        setOrders([]);
+      }
       setLoading(false);
       return;
     }

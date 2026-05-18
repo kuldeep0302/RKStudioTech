@@ -25,6 +25,7 @@ import OrderTimeline from "@/components/orders/OrderTimeline";
 import { useAuth } from "@/hooks/useAuth";
 import { getFirebaseAuth, getFirebaseDb } from "@/services/firebase";
 import { getOrderStatusMessage, OrderStatus, UserOrder, normalizeOrderStatus } from "@/services/orderService";
+import { readMockOrdersForUser } from "@/utils/mockOrderStore";
 import { buildWhatsAppChatUrl, formatPhone } from "@/utils/whatsapp";
 
 const getStatusColor = (status: OrderStatus) => {
@@ -106,7 +107,7 @@ export default function MyOrdersPage() {
       try {
         if (authUser?.provider === "mock") {
           if (!cancelled) {
-            setOrders([]);
+            setOrders(readMockOrdersForUser(user.uid));
             setError("");
             setLoading(false);
           }

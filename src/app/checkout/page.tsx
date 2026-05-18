@@ -24,6 +24,7 @@ import { AppUser, subscribeToUser } from "@/services/userService";
 import { readFabricCart, removeFabricCartItem, removeFabricCartItems } from "@/utils/fabricCart";
 import { clearPendingPaymentOrder, readPendingPaymentOrder } from "@/utils/paymentSession";
 import { PricingBreakdown, calculatePricingBreakdown } from "@/utils/pricing";
+import { saveMockOrderFromCheckout } from "@/utils/mockOrderStore";
 import { buildWhatsAppChatUrl, formatPhone } from "@/utils/whatsapp";
 
 type FinalizeResponse = {
@@ -531,6 +532,19 @@ export default function CheckoutPage() {
 
       if (!response.ok || !payload.orderId) {
         throw new Error(payload.error || "Could not create order.");
+      }
+
+      if (user.provider === "mock") {
+        saveMockOrderFromCheckout({
+          userId: authContext.uid,
+          phone: resolvedPhone,
+          paymentId,
+          orderId: payload.orderId,
+          orderCode: payload.businessOrderId || payload.orderId,
+          pendingOrder,
+          pricingBreakdown,
+          amountPaid: payableNow,
+        });
       }
 
       if (pendingOrder.service === "fabric" || pendingOrder.service === "dupatta") {
