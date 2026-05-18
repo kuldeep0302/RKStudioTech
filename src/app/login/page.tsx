@@ -82,7 +82,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { user, loading, setMockSession } = useAuth();
   const { trackAsync } = useGlobalLoading();
-  const firebaseConfigured = isFirebaseConfigured();
+  const [firebaseConfigured, setFirebaseConfigured] = useState(false);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -99,6 +99,10 @@ export default function LoginPage() {
       router.replace("/");
     }
   }, [loading, router, user]);
+
+  useEffect(() => {
+    setFirebaseConfigured(isFirebaseConfigured());
+  }, []);
 
   const handleSendOtp = async () => {
     setError("");

@@ -55,19 +55,37 @@ type FirebaseRuntimeConfig = {
   configured: boolean;
 };
 
+const readEnvValue = (value: string | undefined): string => {
+  if (!value) {
+    return "";
+  }
+
+  const trimmed = value.trim();
+
+  // Handle accidental quoted values copied into env vars.
+  if (
+    (trimmed.startsWith("\"") && trimmed.endsWith("\""))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+
+  return trimmed;
+};
+
 export const getFirebaseConfig = (): FirebaseRuntimeConfig => {
   const requiredConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim() || "",
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim() || "",
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || "",
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || "",
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim() || "",
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim() || "",
+    apiKey: readEnvValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+    authDomain: readEnvValue(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+    projectId: readEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+    storageBucket: readEnvValue(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+    messagingSenderId: readEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+    appId: readEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
   };
 
   const config = {
     ...requiredConfig,
-    measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID?.trim(),
+    measurementId: readEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) || undefined,
   };
 
   const missingKeys = Object.entries(requiredConfig)
@@ -104,12 +122,12 @@ const logFirebaseEnvDebug = (runtimeConfig: FirebaseRuntimeConfig) => {
   }
 
   const debugValues = {
-    NEXT_PUBLIC_FIREBASE_API_KEY: maskEnvValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: maskEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
-    NEXT_PUBLIC_FIREBASE_APP_ID: maskEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
+    NEXT_PUBLIC_FIREBASE_API_KEY: maskEnvValue(runtimeConfig.config.apiKey),
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: runtimeConfig.config.authDomain,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: runtimeConfig.config.projectId,
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: runtimeConfig.config.storageBucket,
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: maskEnvValue(runtimeConfig.config.messagingSenderId),
+    NEXT_PUBLIC_FIREBASE_APP_ID: maskEnvValue(runtimeConfig.config.appId),
   };
 
   const legacyKeysFound = Object.keys(legacyFirebaseEnvAliases).filter((legacyKey) => {
