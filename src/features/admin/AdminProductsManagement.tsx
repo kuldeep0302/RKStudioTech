@@ -20,22 +20,23 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { collection, getDocs } from "firebase/firestore";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import Grid from "@mui/material/Grid2";
-import { ChangeEvent, DragEvent, useMemo, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useMemo, useState } from "react";
 import RKStudioLogo from "@/components/common/RKStudioLogo";
 import Layout from "@/components/layout/Layout";
 import { useGlobalLoading } from "@/context/LoadingContext";
-import { useProducts } from "@/hooks/useProducts";
 import {
   analyzeProductImageWithAI,
   analyzeProductImageWithVisionAPI,
   AiDetectedProduct,
 } from "@/utils/aiProductDetection";
+import { getFirebaseDb } from "@/services/firebase";
 import {
   addProduct,
   CatalogProduct,
@@ -130,7 +131,9 @@ const compressImageFile = async (file: File): Promise<File> => {
 
 export default function AdminProductsManagement() {
   const { trackAsync } = useGlobalLoading();
-  const { products, loading, error: productsError } = useProducts();
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [productsError, setProductsError] = useState("");
   const [form, setForm] = useState<FormState>(initialForm);
   const [editingId, setEditingId] = useState("");
   const [error, setError] = useState("");
@@ -145,6 +148,58 @@ export default function AdminProductsManagement() {
   const [aiSuggestedFields, setAiSuggestedFields] = useState<Record<string, boolean>>({});
   const [lastUploadedFile, setLastUploadedFile] = useState<File | null>(null);
   const [aiEngine, setAiEngine] = useState<"vision" | "fallback" | "none">("none");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAdminProducts = async () => {
+      try {
+        setProductsError("");
+        setLoading(true);
+
+        const db = getFirebaseDb();
+
+        if (!db) {
+          if (!cancelled) {
+            setProducts([]);
+            setProductsError("Could not fetch products.");
+            setLoading(false);
+          }
+          return;
+        }
+
+        const snapshot = await getDocs(collection(db, "products"));
+        const fullProducts = snapshot.docs.map((productDoc) => ({
+          id: productDoc.id,
+          ...(productDoc.data() as Omit<CatalogProduct, "id">),
+        })) as CatalogProduct[];
+
+        if (cancelled) {
+          return;
+        }
+
+        setProducts(fullProducts);
+        console.log("Admin products:", fullProducts.length);
+      } catch (err) {
+        console.error("Admin products fetch error:", err);
+
+        if (!cancelled) {
+          setProducts([]);
+          setProductsError("Could not fetch products.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadAdminProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const submitLabel = useMemo(() => (editingId ? "Update Product" : "Add Product"), [editingId]);
 

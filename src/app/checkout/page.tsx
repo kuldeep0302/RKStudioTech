@@ -1,13 +1,12 @@
 "use client";
 
 import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, FormControl, FormControlLabel, Radio, RadioGroup, Stack, TextField, Typography } from "@mui/material";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { OrderDetails } from "@/services/orderService";
 import { useAuth } from "@/hooks/useAuth";
-import { getFirebaseAuth, getFirebaseDb } from "@/services/firebase";
+import { getFirebaseAuth } from "@/services/firebase";
 import { trackAnalyticsEvent } from "@/utils/analytics";
 import { RK_STUDIO } from "@/utils/constants";
 import { removeFabricCartItem, removeFabricCartItems } from "@/utils/fabricCart";
@@ -528,37 +527,16 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleContinueWithWhatsAppPayment = async (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleContinueWithWhatsAppPayment = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
 
     const phone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919XXXXXXXXX";
     const service = pendingOrder?.service || "fabric";
     const total = pricingBreakdown?.finalPayable ?? finalAmount ?? 0;
-    const items = pendingOrder?.pricingInput?.lineItems || pendingOrder?.orderDetails || {};
-    const customerPhone = pendingOrder?.customerPhone || "";
-
-    try {
-      const db = getFirebaseDb();
-
-      if (db) {
-        await addDoc(collection(db, "orders"), {
-          token: token || `checkout-${Date.now()}`,
-          service,
-          items,
-          total,
-          phone: customerPhone,
-          createdAt: serverTimestamp(),
-        });
-
-        console.log("Order saved successfully");
-      }
-    } catch (saveError) {
-      console.error("[checkout] order save error before WhatsApp redirect", saveError);
-    }
 
     const message = encodeURIComponent(
-      `New Order\nToken: ${token || "N/A"}\nService: ${service}\nTotal: ₹${total || ""}`,
+      `New Order\nToken: ${token || "N/A"}\nService: ${service}\nTotal: ₹${total}`,
     );
 
     const url = `https://wa.me/${phone}?text=${message}`;
