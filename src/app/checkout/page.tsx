@@ -346,6 +346,16 @@ export default function CheckoutPage() {
         .filter((line) => /fabric|dupatta|item|design|type/i.test(line))
         .slice(0, 5);
 
+      const product = (pendingOrder.pricingInput?.productId || pendingOrder.productId)
+        ? {
+          id: pendingOrder.pricingInput?.productId || pendingOrder.productId,
+          pricingType: pendingOrder.pricingInput?.pricingType
+            || (pendingOrder.service === "fabric" ? "meter" : "piece"),
+        }
+        : null;
+
+      console.log("CHECKOUT PRODUCT:", product);
+
       const paymentId = `order-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const response = await fetch("/api/orders/finalize", {
@@ -357,9 +367,11 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           userId: pendingOrder.userId,
           service: pendingOrder.service,
+          phone: pendingOrder.customerPhone,
           customerPhone: pendingOrder.customerPhone,
           items: lineItems,
-          productId: pendingOrder.productId,
+          productId: product?.id,
+          total: pricingBreakdown.finalPayable,
           orderDetails: enrichedOrderDetails,
           paymentType: pendingOrder.paymentType,
           amountPaid: payableNow,

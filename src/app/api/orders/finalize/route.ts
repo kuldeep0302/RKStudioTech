@@ -170,16 +170,128 @@ const resolvePricing = async (input: z.infer<typeof finalizeSchema>) => {
   throw new Error("Missing productId for pricing validation");
 };
 
+const toNonEmptyString = (value: unknown): string => {
+  return typeof value === "string" ? value.trim() : "";
+};
+
+const toPositiveNumber = (value: unknown): number | null => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const createSafeOrder = async (
+  requesterUid: string,
+  payload: {
+    productId: string;
+    total: number;
+    phone?: string;
+    service?: string;
+  },
+) => {
+  const db = getFirebaseAdminDb();
+  const orderRef = db.collection("orders").doc();
+  const businessOrderId = buildBusinessOrderId();
+  const normalizedPhone = normalizePhone(payload.phone);
+
+  await orderRef.set({
+    id: orderRef.id,
+    orderCode: businessOrderId,
+    userId: requesterUid,
+    phone: payload.phone || null,
+    normalizedPhone,
+    items: [],
+    total: payload.total,
+    service: payload.service === "dupatta" ? "dupatta" : "fabric",
+    productId: payload.productId,
+    orderDetails: {
+      pricing_type: "piece",
+      quantity_or_meter: 1,
+      market_price: payload.total,
+      total_price: payload.total,
+      discount_percentage: 0,
+      discount_amount: 0,
+      final_price: payload.total,
+      pickup_charge: 0,
+      drop_charge: 0,
+      pickup_drop_charge: 0,
+      final_payable: payload.total,
+      advance_amount: Math.round(payload.total * 0.2),
+      remaining_amount: payload.total - Math.round(payload.total * 0.2),
+    },
+    paymentStatus: "pending",
+    paymentType: "full",
+    amountPaid: payload.total,
+    advanceAmount: Math.round(payload.total * 0.2),
+    remainingAmount: payload.total - Math.round(payload.total * 0.2),
+    finalPrice: payload.total,
+    finalPayable: payload.total,
+    totalPrice: payload.total,
+    marketPrice: payload.total,
+    discountPercentage: 0,
+    discountAmount: 0,
+    pricingType: "piece",
+    quantityOrMeter: 1,
+    paymentId: `safe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    status: "pending",
+    approvalStatus: "pending",
+    statusHistory: [
+      {
+        status: "pending",
+        updatedAt: FieldValue.serverTimestamp(),
+        note: "Order created",
+      },
+    ],
+    assignedTo: null,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  return {
+    orderId: orderRef.id,
+    businessOrderId,
+  };
+};
+
 export async function POST(request: NextRequest) {
+  let requester: Awaited<ReturnType<typeof verifyRequestUser>> | null = null;
+  let body: unknown;
+
   try {
-    const requester = await verifyRequestUser(request);
+    requester = await verifyRequestUser(request);
 
     if (!requester) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const input = finalizeSchema.parse(body);
+    body = await request.json();
+    console.log("FINALIZE BODY:", body);
+
+    const parsedInput = finalizeSchema.safeParse(body);
+
+    if (!parsedInput.success) {
+      const raw = body as Record<string, unknown>;
+      const productId = toNonEmptyString(raw.productId);
+      const total = toPositiveNumber(raw.total ?? raw.amountPaid);
+      const phone = toNonEmptyString(raw.phone || raw.customerPhone);
+
+      if (!productId || !total) {
+        return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      }
+
+      const safeOrder = await createSafeOrder(requester.uid, {
+        productId,
+        total,
+        phone,
+        service: toNonEmptyString(raw.service),
+      });
+
+      return NextResponse.json({
+        success: true,
+        orderId: safeOrder.orderId,
+        businessOrderId: safeOrder.businessOrderId,
+      }, { status: 200 });
+    }
+
+    const input = parsedInput.data;
 
     if (requester.uid !== input.userId && requester.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -337,8 +449,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
 
+    try {
+      if (requester && body && typeof body === "object") {
+        const raw = body as Record<string, unknown>;
+        const productId = toNonEmptyString(raw.productId);
+        const total = toPositiveNumber(raw.total ?? raw.amountPaid);
+
+        if (productId && total) {
+          const safeOrder = await createSafeOrder(requester.uid, {
+            productId,
+            total,
+            phone: toNonEmptyString(raw.phone || raw.customerPhone),
+            service: toNonEmptyString(raw.service),
+          });
+
+          return NextResponse.json({
+            success: true,
+            orderId: safeOrder.orderId,
+            businessOrderId: safeOrder.businessOrderId,
+          }, { status: 200 });
+        }
+      }
+    } catch (safeOrderError) {
+      console.error("FINALIZE SAFE ORDER ERROR:", safeOrderError);
+    }
+
     return NextResponse.json(
-      { error: "Unable to finalize order" },
+      { error: "Finalize failed" },
       { status: 500 },
     );
   }

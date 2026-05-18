@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProductById } from "@/services/productService";
-import { getFirebaseAdminDb } from "@/utils/server/firebaseAdmin";
+import { doc, getDoc } from "firebase/firestore";
+import { getFirebaseDb } from "@/services/firebase";
 import {
   calculatePricingBreakdown,
   calculatePricingForLineItems,
@@ -24,24 +24,16 @@ type PricingRequestInput = {
 type PricingApiResponse = {
   success: true;
   total: number;
-  breakdown: {
-    basePrice: number;
-    pickupCharge: number;
-    dropCharge: number;
-    finalPayable: number;
+  breakdown?: {
+    base?: number;
+    basePrice?: number;
+    pickupCharge?: number;
+    dropCharge?: number;
+    finalPayable?: number;
   };
   fallback: boolean;
-  pricingBreakdown: PricingBreakdown;
-};
-
-type PricingProduct = {
-  price: number;
-  marketPrice?: number;
-  pricingType: "meter" | "piece";
-  pricePerUnit?: number;
-  discountPercentage?: number;
-  advancePercentage?: number;
-  productType?: "fabric" | "piece";
+  pricingBreakdown?: PricingBreakdown;
+  reason?: "product_not_found" | "price_missing" | "invalid_payload" | "db_unavailable" | "unexpected_error";
 };
 
 const toFiniteNumber = (value: unknown, fallback: number) => {
@@ -61,89 +53,60 @@ const normalizePricingType = (value: unknown, productType: unknown): "meter" | "
   return "piece";
 };
 
-const buildPricingFromProduct = (
-  product: PricingProduct,
-  quantityOrMeter: number,
-): PricingCalculationInput => ({
-  marketPrice: product.marketPrice || product.price,
-  pricingType: product.pricingType,
-  pricePerUnit: product.pricePerUnit || product.price,
-  quantityOrMeter,
-  discountPercentage: product.discountPercentage ?? 0,
-  advancePercentage: product.advancePercentage ?? 20,
-});
-
-const getProductForPricing = async (productId: string): Promise<PricingProduct | null> => {
-  const normalizedProductId = productId.trim();
-
-  try {
-    const adminDb = getFirebaseAdminDb();
-    let productData: Record<string, unknown> | undefined;
-
-    const productSnap = await adminDb.collection("products").doc(normalizedProductId).get();
-
-    if (productSnap.exists) {
-      productData = productSnap.data() as Record<string, unknown>;
-    }
-
-    if (!productData) {
-      console.log("Trying fallback query...");
-
-      const fallbackSnap = await adminDb
-        .collection("products")
-        .where("id", "==", normalizedProductId)
-        .limit(1)
-        .get();
-
-      if (!fallbackSnap.empty) {
-        productData = fallbackSnap.docs[0].data() as Record<string, unknown>;
-      }
-    }
-
-    if (productData) {
-      const price = toFiniteNumber(productData.price, 0);
-      const marketPrice = toFiniteNumber(productData.marketPrice, price);
-      const pricingType = normalizePricingType(productData.pricingType, productData.productType);
-      const pricePerUnit = toFiniteNumber(productData.pricePerUnit, price);
-
-      return {
-        price,
-        marketPrice,
-        pricingType,
-        pricePerUnit,
-        discountPercentage: toFiniteNumber(productData.discountPercentage, 0),
-        advancePercentage: toFiniteNumber(productData.advancePercentage, 20),
-        productType: productData.productType === "fabric" ? "fabric" : "piece",
-      };
-    }
-  } catch (adminLookupError) {
-    console.error("product_lookup_failed", {
-      productId: normalizedProductId,
-      error: String(adminLookupError),
-    });
-  }
-
-  const fallbackProduct = await getProductById(normalizedProductId);
-
-  if (!fallbackProduct) {
-    return null;
-  }
+const buildFallbackResponse = (
+  reason: NonNullable<PricingApiResponse["reason"]>,
+): PricingApiResponse => {
+  const pricingBreakdown = calculatePricingBreakdown({
+    marketPrice: 100,
+    pricingType: "piece",
+    pricePerUnit: 100,
+    quantityOrMeter: 1,
+    discountPercentage: 0,
+    advancePercentage: 20,
+  });
 
   return {
-    price: fallbackProduct.price,
-    marketPrice: fallbackProduct.marketPrice,
-    pricingType: fallbackProduct.pricingType,
-    pricePerUnit: fallbackProduct.pricePerUnit,
-    discountPercentage: fallbackProduct.discountPercentage,
-    advancePercentage: fallbackProduct.advancePercentage,
-    productType: fallbackProduct.productType,
+    success: true,
+    total: 100,
+    breakdown: {
+      base: 100,
+      basePrice: 100,
+      pickupCharge: 0,
+      dropCharge: 0,
+      finalPayable: 100,
+    },
+    fallback: true,
+    reason,
+    pricingBreakdown,
   };
+};
+
+const extractStrictPrice = (product: Record<string, unknown>): number | null => {
+  if (typeof product.price === "number" && Number.isFinite(product.price)) {
+    return product.price;
+  }
+
+  if (typeof product.pricePerUnit === "number" && Number.isFinite(product.pricePerUnit)) {
+    return product.pricePerUnit;
+  }
+
+  if (typeof product.marketPrice === "number" && Number.isFinite(product.marketPrice)) {
+    return product.marketPrice;
+  }
+
+  return null;
 };
 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as PricingRequestInput;
     console.log("PRICING BODY:", body);
+
+    const db = getFirebaseDb();
+
+    if (!db) {
+      return NextResponse.json(buildFallbackResponse("db_unavailable"), { status: 200 });
+    }
 
     const input: PricingRequestInput = {
       productId: typeof body.productId === "string" ? body.productId.trim() : undefined,
@@ -159,13 +122,35 @@ export async function POST(request: NextRequest) {
       const linePricingInputs: PricingCalculationInput[] = [];
 
       for (const line of input.lineItems) {
-        const product = await getProductForPricing(line.productId);
+        const lineProductId = line.productId.trim();
+        const ref = doc(db, "products", lineProductId);
+        const snap = await getDoc(ref);
 
-        if (!product) {
-          throw new Error(`Product not found after fallback: ${line.productId}`);
+        if (!snap.exists()) {
+          console.error("PRODUCT NOT FOUND:", lineProductId);
+          return NextResponse.json(buildFallbackResponse("product_not_found"), { status: 200 });
         }
 
-        linePricingInputs.push(buildPricingFromProduct(product, line.quantityOrMeter));
+        const product = snap.data() as Record<string, unknown>;
+        console.log("PRODUCT DATA:", product);
+
+        const price = extractStrictPrice(product);
+
+        if (price === null) {
+          console.error("PRICE INVALID:", product);
+          return NextResponse.json(buildFallbackResponse("price_missing"), { status: 200 });
+        }
+
+        const pricingType = normalizePricingType(product.pricingType, product.productType);
+
+        linePricingInputs.push({
+          marketPrice: typeof product.marketPrice === "number" ? product.marketPrice : price,
+          pricingType,
+          pricePerUnit: typeof product.pricePerUnit === "number" ? product.pricePerUnit : price,
+          quantityOrMeter: Number.isFinite(line.quantityOrMeter) ? line.quantityOrMeter : 1,
+          discountPercentage: typeof product.discountPercentage === "number" ? product.discountPercentage : 0,
+          advancePercentage: typeof product.advancePercentage === "number" ? product.advancePercentage : 20,
+        });
       }
 
       const pricingBreakdown = calculatePricingForLineItems(linePricingInputs);
@@ -190,32 +175,47 @@ export async function POST(request: NextRequest) {
     }
 
     if (!input.productId) {
-      throw new Error("Missing productId");
+      return NextResponse.json(buildFallbackResponse("invalid_payload"), { status: 200 });
     }
 
-    const product = await getProductForPricing(input.productId);
+    const productId = input.productId.trim();
+    const ref = doc(db, "products", productId);
+    const snap = await getDoc(ref);
 
-    if (!product) {
-      throw new Error("Product not found after fallback");
+    if (!snap.exists()) {
+      console.error("PRODUCT NOT FOUND:", productId);
+      return NextResponse.json(buildFallbackResponse("product_not_found"), { status: 200 });
     }
 
-    const price = product?.price ?? 0;
+    const product = snap.data() as Record<string, unknown>;
+    console.log("PRODUCT DATA:", product);
+
+    const price = extractStrictPrice(product);
+
+    if (price === null) {
+      console.error("PRICE INVALID:", product);
+      return NextResponse.json(buildFallbackResponse("price_missing"), { status: 200 });
+    }
+
+    const pricingType = normalizePricingType(input.pricingType, product.productType);
     const pricingBreakdown = calculatePricingBreakdown({
-      ...buildPricingFromProduct(product, input.quantityOrMeter ?? 1),
-      pricingType: input.pricingType ?? product.pricingType,
-      pricePerUnit: price,
+      marketPrice: typeof product.marketPrice === "number" ? product.marketPrice : price,
+      pricingType,
+      pricePerUnit: typeof product.pricePerUnit === "number" ? product.pricePerUnit : price,
+      quantityOrMeter: input.quantityOrMeter ?? 1,
+      discountPercentage: typeof product.discountPercentage === "number" ? product.discountPercentage : 0,
+      advancePercentage: typeof product.advancePercentage === "number" ? product.advancePercentage : 20,
       pickupCharge: input.pickupCharge,
       dropCharge: input.dropCharge,
     });
 
-    const total = input.paymentType === "advance"
-      ? pricingBreakdown.advanceAmount
-      : pricingBreakdown.finalPayable;
+    const total = price;
 
     const response: PricingApiResponse = {
       success: true,
       total,
       breakdown: {
+        base: price,
         basePrice: pricingBreakdown.finalPrice,
         pickupCharge: pricingBreakdown.pickupCharge,
         dropCharge: pricingBreakdown.dropCharge,
@@ -228,29 +228,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
     console.error("PRICING ERROR:", error);
-
-    const pricingBreakdown = calculatePricingBreakdown({
-      marketPrice: 100,
-      pricingType: "piece",
-      pricePerUnit: 100,
-      quantityOrMeter: 1,
-      discountPercentage: 0,
-      advancePercentage: 20,
-    });
-
-    const fallbackResponse: PricingApiResponse = {
-      success: true,
-      total: 100,
-      breakdown: {
-        basePrice: 100,
-        pickupCharge: 0,
-        dropCharge: 0,
-        finalPayable: 100,
-      },
-      fallback: true,
-      pricingBreakdown,
-    };
-
-    return NextResponse.json(fallbackResponse, { status: 200 });
+    return NextResponse.json(buildFallbackResponse("unexpected_error"), { status: 200 });
   }
 }
