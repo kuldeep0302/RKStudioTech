@@ -520,25 +520,6 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleContinueWithWhatsAppPayment = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const phone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919XXXXXXXXX";
-    const service = pendingOrder?.service || "fabric";
-    const total = pricingBreakdown?.finalPayable ?? finalAmount ?? 0;
-
-    const message = encodeURIComponent(
-      `New Order\nToken: ${token || "N/A"}\nService: ${service}\nTotal: ₹${total}`,
-    );
-
-    const url = `https://wa.me/${phone}?text=${message}`;
-
-    window.location.href = url;
-
-    console.log("[checkout] whatsapp redirect", { token, service });
-  };
-
   const renderTitle = () => {
     if (!pendingOrder) {
       return "Payment";
@@ -730,15 +711,20 @@ export default function CheckoutPage() {
                 >
                   {submitting ? "Processing..." : "Pay and Confirm"}
                 </Button>
-                <Button
-                  component="button"
-                  type="button"
-                  variant="outlined"
-                  color="success"
-                  onClick={handleContinueWithWhatsAppPayment}
+                <a
+                  href="https://wa.me/919XXXXXXXXX?text=Hello%20I%20want%20to%20complete%20my%20order"
+                  target="_self"
+                  style={{
+                    display: "inline-block",
+                    padding: "10px 16px",
+                    backgroundColor: "#25D366",
+                    color: "#fff",
+                    borderRadius: "6px",
+                    textDecoration: "none",
+                  }}
                 >
                   Continue via WhatsApp Payment
-                </Button>
+                </a>
                 {success ? (
                   <Button variant="outlined" color="success" disabled>
                     WhatsApp link sent automatically

@@ -150,55 +150,38 @@ export default function AdminProductsManagement() {
   const [aiEngine, setAiEngine] = useState<"vision" | "fallback" | "none">("none");
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadAdminProducts = async () => {
+    const fetchAdminProducts = async () => {
       try {
-        setProductsError("");
-        setLoading(true);
-
         const db = getFirebaseDb();
-
+        
         if (!db) {
-          if (!cancelled) {
-            setProducts([]);
-            setProductsError("Could not fetch products.");
-            setLoading(false);
-          }
+          setProducts([]);
+          setProductsError("Could not fetch products.");
+          setLoading(false);
           return;
         }
 
         const snapshot = await getDocs(collection(db, "products"));
-        const fullProducts = snapshot.docs.map((productDoc) => ({
-          id: productDoc.id,
-          ...(productDoc.data() as Omit<CatalogProduct, "id">),
+
+        const products = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
         })) as CatalogProduct[];
 
-        if (cancelled) {
-          return;
-        }
+        console.log("ADMIN PRODUCTS COUNT:", products.length);
 
-        setProducts(fullProducts);
-        console.log("Admin products:", fullProducts.length);
+        setProducts([...products]); // force re-render
+        setProductsError("");
+        setLoading(false);
       } catch (err) {
-        console.error("Admin products fetch error:", err);
-
-        if (!cancelled) {
-          setProducts([]);
-          setProductsError("Could not fetch products.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        console.error("ADMIN FETCH ERROR:", err);
+        setProducts([]);
+        setProductsError("Could not fetch products.");
+        setLoading(false);
       }
     };
 
-    void loadAdminProducts();
-
-    return () => {
-      cancelled = true;
-    };
+    void fetchAdminProducts();
   }, []);
 
   const submitLabel = useMemo(() => (editingId ? "Update Product" : "Add Product"), [editingId]);
