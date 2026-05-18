@@ -40,7 +40,7 @@ export default function CheckoutPage() {
   const [paymentConfigLoading, setPaymentConfigLoading] = useState(true);
   const allowUpiFallback = Boolean(RK_STUDIO.payment.upiId);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!token) {
       setError("Payment session not found. Please start your order again.");
       setLoading(false);
@@ -88,7 +88,6 @@ export default function CheckoutPage() {
             paymentType: pendingOrder.paymentType,
             productId: pendingOrder.pricingInput?.productId || pendingOrder.productId,
             pricingType: pendingOrder.pricingInput?.pricingType,
-            quantityOrMeter: pendingOrder.pricingInput?.quantityOrMeter,
             pickupCharge: pendingOrder.pricingInput?.pickupCharge ?? pickupCharge,
             dropCharge: pendingOrder.pricingInput?.dropCharge ?? dropCharge,
             lineItems: pendingOrder.pricingInput?.lineItems,
@@ -500,6 +499,52 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleContinueWithWhatsAppPayment = () => {
+    setError("");
+    setSuccess("");
+
+    if (!pendingOrder || !pricingBreakdown) {
+      setError("Payment details are not ready yet. Please try again.");
+      return;
+    }
+
+    const manualPaymentDetails = [
+      ...pendingOrder.whatsappDetails,
+      `Market Price: INR ${pricingBreakdown.marketPrice}`,
+      `Discount: INR ${pricingBreakdown.discountAmount} (${pricingBreakdown.discountPercentage}%)`,
+      `Final Price: INR ${pricingBreakdown.finalPrice}`,
+      `Pickup Charge: INR ${pricingBreakdown.pickupCharge}`,
+      `Drop Charge: INR ${pricingBreakdown.dropCharge}`,
+      `Total Payable: INR ${pricingBreakdown.finalPayable}`,
+      `Advance: INR ${pricingBreakdown.advanceAmount}`,
+      `Remaining: INR ${pricingBreakdown.remainingAmount}`,
+      `Requested Payment: ${paymentLabel} (INR ${finalAmount})`,
+      "Payment Mode: Manual via WhatsApp (online payment not working)",
+      "Please share payment scanner / QR and next steps.",
+    ];
+
+    const url = buildWhatsAppUrl({
+      name: pendingOrder.customerName,
+      phone: pendingOrder.customerPhone,
+      service: pendingOrder.service,
+      details: manualPaymentDetails,
+    });
+
+    if (!url) {
+      setError("Service temporarily unavailable");
+      return;
+    }
+
+    void trackAnalyticsEvent("payment_fallback_whatsapp", {
+      service: pendingOrder.service,
+      payment_type: pendingOrder.paymentType || "full",
+      value: finalAmount,
+    });
+
+    setSuccess("Online payment is not working right now. Continue payment on WhatsApp with scanner/QR support.");
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const renderTitle = () => {
     if (!pendingOrder) {
       return "Payment";
@@ -653,6 +698,10 @@ export default function CheckoutPage() {
                 </Alert>
               ) : null}
 
+              <Alert severity="info">
+                If online payment is not working, you can continue manually on WhatsApp and complete payment with scanner/QR support.
+              </Alert>
+
               {paymentMethod === "upi" ? (
                 <Box>
                   <Typography variant="body2" color="text.secondary" mb={1}>
@@ -685,6 +734,14 @@ export default function CheckoutPage() {
                   disabled={submitting || orderConfirmed || !hasValidPaymentSession}
                 >
                   {submitting ? "Processing..." : "Pay and Confirm"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="success"
+                  onClick={handleContinueWithWhatsAppPayment}
+                  disabled={submitting || orderConfirmed || !hasValidPaymentSession || !pricingBreakdown}
+                >
+                  Continue via WhatsApp Payment
                 </Button>
                 {success && whatsappUrl ? (
                   <Button

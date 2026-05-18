@@ -2,10 +2,8 @@ import type { Metadata } from "next";
 import { Work_Sans } from "next/font/google";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import { CssBaseline, ThemeProvider } from "@mui/material";
-import Footer from "@/components/layout/Footer";
-import Navbar from "@/components/layout/Navbar";
+import AppShell from "@/components/layout/AppShell";
 import FirebaseAnalyticsBootstrap from "@/components/common/FirebaseAnalyticsBootstrap";
-import WhatsAppButton from "@/components/common/WhatsAppButton";
 import { getBrandingLogoPath } from "@/branding/logoConfig";
 import { AuthProvider } from "@/context/AuthContext";
 import { LoadingProvider } from "@/context/LoadingContext";
@@ -42,10 +40,7 @@ export default function RootLayout({
             <LoadingProvider>
               <AuthProvider>
                 <FirebaseAnalyticsBootstrap />
-                <Navbar />
-                {children}
-                <Footer />
-                <WhatsAppButton />
+                <AppShell>{children}</AppShell>
               </AuthProvider>
             </LoadingProvider>
           </ThemeProvider>

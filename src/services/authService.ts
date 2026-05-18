@@ -1,5 +1,5 @@
 import { ConfirmationResult, RecaptchaVerifier, signInWithPhoneNumber, updateProfile } from "firebase/auth";
-import { getFirebaseAuth, isFirebaseConfigured } from "@/services/firebase";
+import { getFirebaseAuth } from "@/services/firebase";
 import { saveUserToFirestore } from "@/services/userService";
 import { AuthUser, UserRole } from "@/types/auth";
 
@@ -47,10 +47,6 @@ export const getOrCreateRecaptcha = (): RecaptchaVerifier => {
     throw new Error("OTP service temporarily unavailable. Please try again.");
   }
 
-  if (!isFirebaseConfigured && process.env.NODE_ENV === "production") {
-    throw new Error("Firebase config missing in production");
-  }
-
   const auth = getFirebaseAuth();
 
   if (!auth) {
@@ -73,10 +69,6 @@ export const getOrCreateRecaptcha = (): RecaptchaVerifier => {
 };
 
 export const sendOtpToPhone = async (phone: string): Promise<ConfirmationResult> => {
-  if (!isFirebaseConfigured && process.env.NODE_ENV === "production") {
-    throw new Error("Firebase config missing in production");
-  }
-
   const auth = getFirebaseAuth();
 
   if (!auth) {

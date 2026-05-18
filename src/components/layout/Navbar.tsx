@@ -34,8 +34,12 @@ const navLinks = [
   { label: "Cart", href: "/cart" },
 ];
 
-export default function Navbar() {
-  const [open, setOpen] = useState(false);
+type NavbarProps = {
+  open: boolean;
+  setOpen: (value: boolean) => void;
+};
+
+export default function Navbar({ open, setOpen }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [profileAnchor, setProfileAnchor] = useState<null | HTMLElement>(null);
   const pathname = usePathname();
@@ -329,13 +333,6 @@ export default function Navbar() {
         anchor="right"
         open={open}
         onClose={() => setOpen(false)}
-        ModalProps={{
-          BackdropProps: {
-            sx: {
-              pointerEvents: "none",
-            },
-          },
-        }}
         PaperProps={{
           sx: {
             width: 300,
