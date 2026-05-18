@@ -156,9 +156,7 @@ export default function LoginPage() {
       setUsingMockFlow(shouldUseMockFlow);
 
       if (shouldUseMockFlow) {
-        console.log("[auth] mock OTP flow active", {
-          reason: USE_MOCK_OTP ? "env-toggle" : "admin-override",
-        });
+        console.log("AUTH MODE:", "mock");
         setPhone(formattedPhone);
         setOtpSent(true);
         setSuccess(`Mock OTP sent: ${MOCK_OTP}`);
@@ -166,7 +164,7 @@ export default function LoginPage() {
         return;
       }
 
-      console.log("[auth] firebase phone OTP flow active");
+      console.log("AUTH MODE:", "firebase");
       confirmationResultRef.current = await trackAsync(sendOtpToPhone(formattedPhone));
       setPhone(formattedPhone);
       setOtpSent(true);
@@ -340,7 +338,7 @@ export default function LoginPage() {
 
               {USE_MOCK_OTP || usingMockFlow ? (
                 <Alert severity="info">
-                  Mock OTP mode enabled (testing)
+                  Mock OTP mode enabled
                 </Alert>
               ) : null}
 

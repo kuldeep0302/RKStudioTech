@@ -32,21 +32,30 @@ const isAdminPhoneDigits = (phone?: string | null): boolean => {
   return adminPhoneDigits.slice(-10) === userPhoneDigits.slice(-10);
 };
 
+const isAdminMockUid = (uid: string): boolean => {
+  if (!uid.startsWith("mock-")) {
+    return false;
+  }
+
+  const phoneFromUid = uid.slice("mock-".length);
+  return isAdminPhoneDigits(phoneFromUid);
+};
+
 const getDevMockUserFromToken = (token: string): AuthUser | null => {
   // token format (legacy): mock:<uid>:<role>
-  // token format (current): mock-token-<uid>:<role>:<phoneDigits>
+  // token format (current): mock-token-<uid>
   const mockOtpEnabled = process.env.NEXT_PUBLIC_USE_MOCK_OTP === "true";
   let uid = "";
   let role = "user";
   let phoneNumber: string | null = null;
 
   if (token.startsWith("mock-token-")) {
-    const withoutPrefix = token.slice("mock-token-".length);
-    const [parsedUid, parsedRole, parsedPhone] = withoutPrefix.split(":");
+    uid = token.slice("mock-token-".length) || "";
 
-    uid = parsedUid || "";
-    role = parsedRole === "admin" ? "admin" : "user";
-    phoneNumber = parsedPhone ? `+${parsedPhone}` : null;
+    if (uid.startsWith("mock-")) {
+      const rawPhone = uid.slice("mock-".length);
+      phoneNumber = rawPhone || null;
+    }
   } else if (token.startsWith("mock:")) {
     const [, parsedUid, parsedRole] = token.split(":");
 
@@ -60,13 +69,9 @@ const getDevMockUserFromToken = (token: string): AuthUser | null => {
     return null;
   }
 
-  const allowAdminOverride = isAdminPhoneDigits(phoneNumber);
+  const allowAdminOverride = isAdminMockUid(uid);
 
   if (!mockOtpEnabled && !allowAdminOverride) {
-    return null;
-  }
-
-  if (process.env.NODE_ENV === "production" && !mockOtpEnabled && !allowAdminOverride) {
     return null;
   }
 

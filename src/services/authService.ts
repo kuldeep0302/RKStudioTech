@@ -32,12 +32,12 @@ export const MOCK_OTP = rawMockOtp && rawMockOtp !== "false" ? rawMockOtp : "123
 export const useMockOtp = getEnvBool(process.env.NEXT_PUBLIC_USE_MOCK_OTP);
 
 export const createMockUser = (name: string, phone: string, role: UserRole): AuthUser => {
-  const digits = phone.replace(/\D/g, "");
+  const normalizedPhone = normalizeIndianPhone(phone);
 
   return {
-    uid: `mock-${digits || "user"}`,
+    uid: `mock-${normalizedPhone || "user"}`,
     displayName: name.trim() || "Test User",
-    phoneNumber: normalizeIndianPhone(phone),
+    phoneNumber: normalizedPhone,
     role,
     provider: "mock",
   };
@@ -51,15 +51,8 @@ export const shouldUseAdminMockOverride = (phone: string): boolean => {
   return isAdminPhone(phone);
 };
 
-const normalizePhoneDigits = (phone?: string | null): string => {
-  return (phone || "").replace(/\D/g, "");
-};
-
-export const createMockAccessToken = (user: Pick<AuthUser, "uid" | "role" | "phoneNumber">): string => {
-  const role = user.role === "admin" ? "admin" : "user";
-  const phone = normalizePhoneDigits(user.phoneNumber);
-
-  return `mock-token-${user.uid}:${role}:${phone}`;
+export const createMockAccessToken = (user: Pick<AuthUser, "uid">): string => {
+  return `mock-token-${user.uid}`;
 };
 
 export const getOrCreateRecaptcha = (): RecaptchaVerifier => {
