@@ -142,6 +142,44 @@ const toPositiveNumber = (value: unknown): number | null => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
+const resolveFallbackProductId = (body: unknown): string => {
+  if (!body || typeof body !== "object") {
+    return "unknown-product";
+  }
+
+  const raw = body as Record<string, unknown>;
+  const topLevelProductId = toNonEmptyString(raw.productId);
+
+  if (topLevelProductId) {
+    return topLevelProductId;
+  }
+
+  const pricingInput = raw.pricingInput;
+
+  if (pricingInput && typeof pricingInput === "object") {
+    const pricingProductId = toNonEmptyString((pricingInput as Record<string, unknown>).productId);
+
+    if (pricingProductId) {
+      return pricingProductId;
+    }
+
+    const lineItems = Array.isArray((pricingInput as Record<string, unknown>).lineItems)
+      ? ((pricingInput as Record<string, unknown>).lineItems as Array<Record<string, unknown>>)
+      : [];
+
+    const firstLineProductId = lineItems.length > 0 ? toNonEmptyString(lineItems[0].productId) : "";
+
+    if (firstLineProductId) {
+      return firstLineProductId;
+    }
+  }
+
+  const items = Array.isArray(raw.items) ? (raw.items as Array<Record<string, unknown>>) : [];
+  const firstItemProductId = items.length > 0 ? toNonEmptyString(items[0].productId) : "";
+
+  return firstItemProductId || "unknown-product";
+};
+
 const createSafeOrder = async (
   uid: string,
   payload: {
@@ -417,7 +455,32 @@ export async function POST(request: NextRequest) {
     }
 
     if (error instanceof Error && error.message.includes("Product not found")) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+      try {
+        if (uid && body && typeof body === "object") {
+          const raw = body as Record<string, unknown>;
+          const fallbackProductId = resolveFallbackProductId(raw);
+          const total = toPositiveNumber(raw.total ?? raw.amountPaid);
+
+          if (total) {
+            const safeOrder = await createSafeOrder(uid, {
+              productId: fallbackProductId,
+              total,
+              phone: toNonEmptyString(raw.phone || raw.customerPhone),
+              service: toNonEmptyString(raw.service),
+            });
+
+            return NextResponse.json({
+              success: true,
+              orderId: safeOrder.orderId,
+              businessOrderId: safeOrder.businessOrderId,
+            }, { status: 200 });
+          }
+        }
+      } catch (safeOrderError) {
+        console.error("FINALIZE PRODUCT FALLBACK ERROR:", safeOrderError);
+      }
+
+      return NextResponse.json({ error: "Product unavailable. Please refresh checkout and try again." }, { status: 200 });
     }
 
     try {

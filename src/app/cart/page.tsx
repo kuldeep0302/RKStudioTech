@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
+import { getProductById } from "@/services/productService";
 import { trackAnalyticsEvent } from "@/utils/analytics";
 import { formatINR } from "@/utils/currency";
 import { FabricCartItem, readFabricCart, removeFabricCartItem, clearFabricCart } from "@/utils/fabricCart";
@@ -28,9 +29,54 @@ export default function CartPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [items, setItems] = useState<FabricCartItem[]>([]);
+  const [cleanupNotice, setCleanupNotice] = useState("");
 
   useEffect(() => {
-    setItems(readFabricCart());
+    let cancelled = false;
+
+    const loadCart = async () => {
+      const storedItems = readFabricCart();
+
+      if (storedItems.length === 0) {
+        if (!cancelled) {
+          setItems([]);
+        }
+        return;
+      }
+
+      const resolvedItems = await Promise.all(
+        storedItems.map(async (item) => {
+          const product = await getProductById(item.productId);
+          return product ? item : null;
+        }),
+      );
+
+      const nextItems = resolvedItems.filter((item): item is FabricCartItem => Boolean(item));
+
+      if (!cancelled) {
+        setItems(nextItems);
+      }
+
+      const removedCount = storedItems.length - nextItems.length;
+
+      if (removedCount > 0) {
+        setCleanupNotice(`${removedCount} unavailable item${removedCount > 1 ? "s" : ""} removed from cart.`);
+
+        for (const item of storedItems) {
+          if (nextItems.some((nextItem) => nextItem.id === item.id)) {
+            continue;
+          }
+
+          removeFabricCartItem(item.id);
+        }
+      }
+    };
+
+    void loadCart();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const subtotal = useMemo(
@@ -168,6 +214,8 @@ export default function CartPage() {
         {items.length === 0 ? (
           <Alert severity="info">Your cart is empty. Add products from the fabric page.</Alert>
         ) : null}
+
+        {cleanupNotice ? <Alert severity="warning">{cleanupNotice}</Alert> : null}
 
         {items.length > 0 ? (
           <Grid container spacing={2.5}>

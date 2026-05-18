@@ -90,7 +90,7 @@ export const useOrders = ({ mode, userId, phone, mockMode = false }: UseOrdersPa
           );
 
     return () => unsubscribe();
-  }, [mode, userId, phone]);
+  }, [mode, userId, phone, mockMode]);
 
   return {
     orders,
