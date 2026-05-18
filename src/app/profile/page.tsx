@@ -49,6 +49,20 @@ export default function ProfilePage() {
       return;
     }
 
+    if (user.provider === "mock") {
+      setForm({
+        name: user.displayName || "",
+        phone: user.phoneNumber || "",
+        address: "",
+        chest: "",
+        waist: "",
+        hip: "",
+        length: "",
+      });
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = subscribeToUser(
       user.uid,
       (profile: AppUser | null) => {

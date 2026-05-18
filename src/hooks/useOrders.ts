@@ -13,9 +13,10 @@ type UseOrdersParams = {
   mode: "user" | "all" | "phone";
   userId?: string;
   phone?: string;
+  mockMode?: boolean;
 };
 
-export const useOrders = ({ mode, userId, phone }: UseOrdersParams) => {
+export const useOrders = ({ mode, userId, phone, mockMode = false }: UseOrdersParams) => {
   const [orders, setOrders] = useState<UserOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,6 +31,12 @@ export const useOrders = ({ mode, userId, phone }: UseOrdersParams) => {
     }
 
     if (mode === "phone" && !phone) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+
+    if (mockMode || userId?.startsWith("mock-")) {
       setOrders([]);
       setLoading(false);
       return;

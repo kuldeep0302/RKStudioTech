@@ -104,6 +104,16 @@ export default function MyOrdersPage() {
       }
 
       try {
+        if (authUser?.provider === "mock") {
+          if (!cancelled) {
+            setOrders([]);
+            setError("");
+            setLoading(false);
+          }
+
+          return;
+        }
+
         const ordersQuery = query(
           collection(db, "orders"),
           where("userId", "==", user.uid),

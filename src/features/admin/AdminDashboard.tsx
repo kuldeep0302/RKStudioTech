@@ -316,7 +316,7 @@ const SmallSalesChart = ({ data }: { data: SalesPoint[] }) => {
 export default function AdminDashboard() {
   const { user } = useAuth();
   const { trackAsync } = useGlobalLoading();
-  const { orders, error: ordersError } = useOrders({ mode: "all" });
+  const { orders, error: ordersError } = useOrders({ mode: "all", mockMode: user?.provider === "mock" });
   const [users, setUsers] = useState<AppUser[]>([]);
   const [salesRange, setSalesRange] = useState<SalesRange>(7);
   const [search, setSearch] = useState("");

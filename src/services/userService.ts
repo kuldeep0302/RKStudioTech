@@ -81,6 +81,11 @@ export const subscribeToUser = (
   onUser: (user: AppUser | null) => void,
   onError?: (error: Error) => void,
 ) => {
+  if (uid.startsWith("mock-")) {
+    onUser(null);
+    return () => undefined;
+  }
+
   const db = getFirebaseDb();
 
   if (!db) {

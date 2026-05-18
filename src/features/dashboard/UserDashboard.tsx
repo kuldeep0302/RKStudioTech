@@ -96,7 +96,7 @@ const buildTailoringHref = (selectedFabricId?: string, compareFabricIds: string[
 
 export default function UserDashboard() {
   const { user } = useAuth();
-  const { orders, loading, error } = useOrders({ mode: "user", userId: user?.uid });
+  const { orders, loading, error } = useOrders({ mode: "user", userId: user?.uid, mockMode: user?.provider === "mock" });
   const { products } = useProducts({ category: "fabric" });
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [profileError, setProfileError] = useState("");
@@ -105,6 +105,12 @@ export default function UserDashboard() {
   useEffect(() => {
     if (!user?.uid) {
       setProfile(null);
+      return;
+    }
+
+    if (user.provider === "mock") {
+      setProfile(null);
+      setProfileError("");
       return;
     }
 
