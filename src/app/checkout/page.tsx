@@ -40,6 +40,20 @@ export default function CheckoutPage() {
   const [paymentConfigLoading, setPaymentConfigLoading] = useState(true);
   const allowUpiFallback = Boolean(RK_STUDIO.payment.upiId);
 
+  const openExternalLink = (url: string, source: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    console.info("[checkout] opening external link", { source, url });
+
+    const popup = window.open(url, "_blank", "noopener,noreferrer");
+
+    if (!popup) {
+      window.location.href = url;
+    }
+  };
+
     useEffect(() => {
     if (!token) {
       setError("Payment session not found. Please start your order again.");
@@ -419,6 +433,13 @@ export default function CheckoutPage() {
   };
 
   const handlePayAndConfirm = async () => {
+    console.info("[checkout] pay and confirm clicked", {
+      method: paymentMethod,
+      token,
+      hasPendingOrder: Boolean(pendingOrder),
+      hasPricingBreakdown: Boolean(pricingBreakdown),
+    });
+
     setError("");
     setSuccess("");
 
@@ -479,7 +500,7 @@ export default function CheckoutPage() {
           amount: finalAmount,
           note: `${pendingOrder.service} payment`,
         });
-        window.location.href = upiLink;
+        openExternalLink(upiLink, "upi");
         setUpiStarted(true);
         setError("After UPI payment, enter the UTR/reference and confirm again.");
         return;
@@ -500,24 +521,42 @@ export default function CheckoutPage() {
   };
 
   const handleContinueWithWhatsAppPayment = () => {
+    console.info("[checkout] whatsapp manual payment clicked", {
+      token,
+      hasPendingOrder: Boolean(pendingOrder),
+      hasPricingBreakdown: Boolean(pricingBreakdown),
+    });
+
     setError("");
     setSuccess("");
 
-    if (!pendingOrder || !pricingBreakdown) {
+    if (!pendingOrder) {
       setError("Payment details are not ready yet. Please try again.");
       return;
     }
 
+    const fallbackBreakdown = pricingBreakdown || {
+      marketPrice: finalAmount,
+      discountAmount: 0,
+      discountPercentage: 0,
+      finalPrice: finalAmount,
+      pickupCharge: pickupChargeFromOrder,
+      dropCharge: dropChargeFromOrder,
+      finalPayable: finalAmount,
+      advanceAmount: finalAmount,
+      remainingAmount: 0,
+    };
+
     const manualPaymentDetails = [
       ...pendingOrder.whatsappDetails,
-      `Market Price: INR ${pricingBreakdown.marketPrice}`,
-      `Discount: INR ${pricingBreakdown.discountAmount} (${pricingBreakdown.discountPercentage}%)`,
-      `Final Price: INR ${pricingBreakdown.finalPrice}`,
-      `Pickup Charge: INR ${pricingBreakdown.pickupCharge}`,
-      `Drop Charge: INR ${pricingBreakdown.dropCharge}`,
-      `Total Payable: INR ${pricingBreakdown.finalPayable}`,
-      `Advance: INR ${pricingBreakdown.advanceAmount}`,
-      `Remaining: INR ${pricingBreakdown.remainingAmount}`,
+      `Market Price: INR ${fallbackBreakdown.marketPrice}`,
+      `Discount: INR ${fallbackBreakdown.discountAmount} (${fallbackBreakdown.discountPercentage}%)`,
+      `Final Price: INR ${fallbackBreakdown.finalPrice}`,
+      `Pickup Charge: INR ${fallbackBreakdown.pickupCharge}`,
+      `Drop Charge: INR ${fallbackBreakdown.dropCharge}`,
+      `Total Payable: INR ${fallbackBreakdown.finalPayable}`,
+      `Advance: INR ${fallbackBreakdown.advanceAmount}`,
+      `Remaining: INR ${fallbackBreakdown.remainingAmount}`,
       `Requested Payment: ${paymentLabel} (INR ${finalAmount})`,
       "Payment Mode: Manual via WhatsApp (online payment not working)",
       "Please share payment scanner / QR and next steps.",
@@ -542,7 +581,7 @@ export default function CheckoutPage() {
     });
 
     setSuccess("Online payment is not working right now. Continue payment on WhatsApp with scanner/QR support.");
-    window.open(url, "_blank", "noopener,noreferrer");
+    openExternalLink(url, "manual-whatsapp");
   };
 
   const renderTitle = () => {
@@ -739,7 +778,7 @@ export default function CheckoutPage() {
                   variant="outlined"
                   color="success"
                   onClick={handleContinueWithWhatsAppPayment}
-                  disabled={submitting || orderConfirmed || !hasValidPaymentSession || !pricingBreakdown}
+                  disabled={submitting || orderConfirmed || !hasValidPaymentSession}
                 >
                   Continue via WhatsApp Payment
                 </Button>
@@ -747,7 +786,7 @@ export default function CheckoutPage() {
                   <Button
                     variant="outlined"
                     color="success"
-                    onClick={() => window.open(whatsappUrl, "_blank", "noopener,noreferrer")}
+                    onClick={() => openExternalLink(whatsappUrl, "open-whatsapp-again")}
                   >
                     Open WhatsApp Again
                   </Button>

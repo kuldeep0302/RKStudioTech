@@ -48,6 +48,12 @@ export default function Navbar({ open, setOpen }: NavbarProps) {
   const whatsappMessage = "Hi, I want to know about tailoring";
   const whatsappLink = RK_STUDIO.whatsappChatUrl
     || `https://wa.me/918901501572?text=${encodeURIComponent(whatsappMessage)}`;
+  const logWhatsAppClick = (source: "desktop" | "mobile") => {
+    console.info("[whatsapp] navbar click", {
+      source,
+      href: whatsappLink,
+    });
+  };
 
   const profileMenuOpen = Boolean(profileAnchor);
   const mobileLinks = useMemo(() => {
@@ -209,6 +215,7 @@ export default function Navbar({ open, setOpen }: NavbarProps) {
             href={whatsappLink}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => logWhatsAppClick("desktop")}
             startIcon={<WhatsAppIcon />}
             sx={{
               borderRadius: 999,
@@ -219,6 +226,9 @@ export default function Navbar({ open, setOpen }: NavbarProps) {
               lineHeight: 1,
               whiteSpace: "nowrap",
               minWidth: "fit-content",
+              position: "relative",
+              zIndex: 2,
+              pointerEvents: "auto",
               color: "#166534",
               bgcolor: alpha("#DCFCE7", 0.92),
               border: `1px solid ${alpha("#86EFAC", 0.86)}`,
@@ -363,10 +373,12 @@ export default function Navbar({ open, setOpen }: NavbarProps) {
             href={whatsappLink}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => logWhatsAppClick("mobile")}
             startIcon={<WhatsAppIcon />}
             sx={{
               justifyContent: "flex-start",
               borderRadius: 999,
+              pointerEvents: "auto",
               bgcolor: alpha("#DCFCE7", 0.95),
               color: "#166534",
               border: `1px solid ${alpha("#86EFAC", 0.84)}`,

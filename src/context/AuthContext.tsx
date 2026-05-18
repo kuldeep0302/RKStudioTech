@@ -44,12 +44,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const existingMockUser = readMockSession();
 
     if (existingMockUser) {
+      console.info("[auth] restored mock session", {
+        uid: existingMockUser.uid,
+      });
       setUser(existingMockUser);
       setLoading(false);
       return;
     }
 
-    if (!isFirebaseConfigured()) {
+    const configured = isFirebaseConfigured();
+    console.info("[auth] firebase config status", { configured });
+
+    if (!configured) {
       setLoading(false);
       return;
     }
@@ -57,6 +63,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const auth = getFirebaseAuth();
 
     if (!auth) {
+      console.warn("[auth] firebase auth instance unavailable");
       setLoading(false);
       return;
     }

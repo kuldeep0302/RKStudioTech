@@ -160,7 +160,9 @@ const dummyCatalogProducts: CatalogProduct[] = [...fabricProducts.slice(0, 3), .
 );
 
 const byNewestFallback = (a: CatalogProduct, b: CatalogProduct) => a.id.localeCompare(b.id);
-const allowMockCatalogFallback = process.env.NODE_ENV !== "production";
+const allowMockCatalogFallback =
+  process.env.NODE_ENV !== "production"
+  || process.env.NEXT_PUBLIC_ENABLE_MOCK_CATALOG_FALLBACK === "true";
 
 export type ProductPageCursor = QueryDocumentSnapshot<DocumentData> | null;
 
@@ -375,7 +377,26 @@ export const getProductsByCategoryPage = async (
       ? query(collection(db, "products"), startAfter(cursor), limit(pageSize * 2))
       : query(collection(db, "products"), limit(pageSize * 2));
 
-    snapshot = await getDocs(fallbackQuery);
+    try {
+      snapshot = await getDocs(fallbackQuery);
+    } catch (fallbackError) {
+      if (allowMockCatalogFallback) {
+        console.warn("[products] firestore page query failed, using mock fallback", {
+          category,
+          error: fallbackError,
+        });
+
+        const fallbackProducts = dummyCatalogProducts.filter((product) => product.category === category);
+
+        return {
+          products: fallbackProducts.slice(0, pageSize),
+          cursor: null,
+          hasMore: fallbackProducts.length > pageSize,
+        };
+      }
+
+      throw fallbackError;
+    }
   }
 
   const products = snapshot.docs

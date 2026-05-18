@@ -19,10 +19,10 @@ export default function WhatsAppButton() {
     : RK_STUDIO.whatsappChatUrl;
   const whatsappUrl = href || `https://wa.me/918901501572?text=${encodeURIComponent(message)}`;
 
-  const handleOpenWhatsApp = () => {
-    if (typeof window !== "undefined") {
-      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-    }
+  const handleClick = () => {
+    console.info("[whatsapp] floating button clicked", {
+      href: whatsappUrl,
+    });
   };
 
   if (!isClient) {
@@ -31,7 +31,11 @@ export default function WhatsAppButton() {
 
   return (
     <Fab
-      onClick={handleOpenWhatsApp}
+      component="a"
+      href={whatsappUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={handleClick}
       aria-label="Chat on WhatsApp"
       sx={{
         position: "fixed",
@@ -42,8 +46,10 @@ export default function WhatsAppButton() {
         color: "#FFFFFF",
         cursor: "pointer",
         pointerEvents: "auto",
+        userSelect: "none",
         opacity: 1,
         touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
         "&:hover": {
           bgcolor: "#1DAE57",
         },

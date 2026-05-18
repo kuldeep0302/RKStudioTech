@@ -3,7 +3,7 @@
 import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, FormControl, FormControlLabel, FormLabel, MenuItem, Radio, RadioGroup, Stack, TextField, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useGlobalLoading } from "@/context/LoadingContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
@@ -508,7 +508,13 @@ export default function TailoringForm() {
 
   const customSizeCharactersLeft = CUSTOM_SIZE_NOTES_MAX_LENGTH - formData.customSizeNotes.length;
 
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
+    console.info("[tailoring] proceed click", {
+      activeStep,
+      isLast,
+      hasValidationError: Boolean(validationMessage),
+    });
+
     if (validationMessage) {
       setError(validationMessage);
       return;
@@ -602,6 +608,11 @@ export default function TailoringForm() {
           ),
         );
 
+        console.info("[tailoring] checkout redirect", {
+          token,
+          service: "tailoring",
+          productId: selectedFabricProduct?.id || "",
+        });
         router.push(`/checkout?token=${encodeURIComponent(token)}`);
       } catch {
         setError("Could not open payment page. Please try again.");
@@ -613,7 +624,18 @@ export default function TailoringForm() {
     }
 
     setActiveStep((prev) => prev + 1);
-  };
+  }, [
+    activeStep,
+    fabricDetails,
+    formData,
+    isLast,
+    router,
+    selectedFabricProduct,
+    trackAsync,
+    user,
+    validationMessage,
+    whatsappDetails,
+  ]);
 
   const handleBack = () => {
     setError("");

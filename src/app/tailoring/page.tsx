@@ -1,3 +1,5 @@
+"use client";
+
 import dynamic from "next/dynamic";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import Layout from "@/components/layout/Layout";
@@ -5,6 +7,7 @@ import Layout from "@/components/layout/Layout";
 const TailoringForm = dynamic(
   () => import("@/features/tailoring/components/TailoringForm"),
   {
+    ssr: false,
     loading: () => (
       <Stack alignItems="center" py={10}>
         <CircularProgress />

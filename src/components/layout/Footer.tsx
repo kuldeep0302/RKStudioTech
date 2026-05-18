@@ -9,6 +9,9 @@ export default function Footer() {
   const whatsappMessage = "Hi, I want to know about tailoring";
   const whatsappLink = RK_STUDIO.whatsappChatUrl
     || `https://wa.me/918901501572?text=${encodeURIComponent(whatsappMessage)}`;
+  const handleWhatsAppClick = () => {
+    console.info("[whatsapp] footer click", { href: whatsappLink });
+  };
 
   return (
     <Box
@@ -36,11 +39,15 @@ export default function Footer() {
                 href={whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={handleWhatsAppClick}
                 startIcon={<WhatsAppIcon />}
                 sx={{
                   borderRadius: 999,
                   px: 2.2,
                   py: 0.9,
+                  pointerEvents: "auto",
+                  position: "relative",
+                  zIndex: 2,
                   color: "#FFFFFF",
                   bgcolor: "#25D366",
                   boxShadow: "none",

@@ -24,7 +24,11 @@ export const normalizeIndianPhone = (value: string): string => {
 };
 
 export const MOCK_OTP = process.env.NEXT_PUBLIC_MOCK_OTP || "";
-export const useMockOtp = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_USE_MOCK_OTP === "true";
+export const useMockOtp = process.env.NEXT_PUBLIC_USE_MOCK_OTP === "true"
+  && (
+    process.env.NODE_ENV !== "production"
+    || process.env.NEXT_PUBLIC_ALLOW_PRODUCTION_MOCK_OTP === "true"
+  );
 
 export const createMockUser = (name: string, phone: string, role: UserRole): AuthUser => {
   const digits = phone.replace(/\D/g, "");

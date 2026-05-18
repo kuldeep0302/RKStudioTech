@@ -24,13 +24,29 @@ const buildOrderMessage = ({ name, phone, service, details }: SendToWhatsAppInpu
   ].join("\n");
 };
 
+const appendMessageToChatUrl = (chatUrl: string, message: string) => {
+  try {
+    const url = new URL(chatUrl);
+    url.searchParams.set("text", message);
+    return url.toString();
+  } catch {
+    const separator = chatUrl.includes("?") ? "&" : "?";
+    return `${chatUrl}${separator}text=${encodeURIComponent(message)}`;
+  }
+};
+
 export const buildWhatsAppUrl = (input: SendToWhatsAppInput) => {
-  if (!WHATSAPP_NUMBER) {
-    return "";
+  const message = buildOrderMessage(input);
+
+  if (WHATSAPP_NUMBER) {
+    return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
   }
 
-  const message = buildOrderMessage(input);
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  if (RK_STUDIO.whatsappChatUrl) {
+    return appendMessageToChatUrl(RK_STUDIO.whatsappChatUrl, message);
+  }
+
+  return "";
 };
 
 export const sendToWhatsApp = (input: SendToWhatsAppInput) => {

@@ -20,13 +20,16 @@ export default function FabricFilters({ filters, onChange }: FabricFiltersProps)
           <TextField
             label="Max rate"
             type="number"
-            value={filters.maxPrice}
-            onChange={(event) =>
+            value={filters.maxPrice ?? ""}
+            placeholder="No max limit"
+            onChange={(event) => {
+              const nextValue = event.target.value;
+
               onChange({
                 ...filters,
-                maxPrice: Number(event.target.value),
-              })
-            }
+                maxPrice: nextValue === "" ? null : Number(nextValue),
+              });
+            }}
           />
 
           <TextField
