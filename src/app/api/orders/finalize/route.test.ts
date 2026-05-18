@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
 
 let paymentAlreadyProcessed = false;
 
@@ -99,7 +100,7 @@ const buildRequest = (overrides?: Partial<Record<string, unknown>>) => {
       Authorization: "Bearer mock:user-1:user",
     },
     body: JSON.stringify(body),
-  });
+  }) as NextRequest;
 };
 
 describe("POST /api/orders/finalize", () => {
