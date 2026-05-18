@@ -21,7 +21,11 @@ const getDevMockUserFromToken = (token: string): AuthUser | null => {
   // token format: mock:<uid>:<role>
   const mockOtpEnabled = process.env.NEXT_PUBLIC_USE_MOCK_OTP === "true";
 
-  if ((!mockOtpEnabled && process.env.NODE_ENV === "production") || !token.startsWith("mock:")) {
+  if (!token.startsWith("mock:")) {
+    return null;
+  }
+
+  if (process.env.NODE_ENV === "production" || !mockOtpEnabled) {
     return null;
   }
 

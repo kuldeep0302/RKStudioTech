@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/services/firebase";
 import { AuthUser } from "@/types/auth";
+import { useMockOtp } from "@/services/authService";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const existingMockUser = readMockSession();
 
-    if (existingMockUser) {
+    if (existingMockUser && process.env.NODE_ENV !== "production" && useMockOtp) {
       console.info("[auth] restored mock session", {
         uid: existingMockUser.uid,
       });
