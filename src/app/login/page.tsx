@@ -28,13 +28,13 @@ import {
   normalizeIndianPhone,
   saveMockUserToFirestore,
   sendOtpToPhone,
-  useMockOtp,
   verifyMockOtp,
   verifyOtpAndSaveUser,
 } from "@/services/authService";
 import { UserRole } from "@/types/auth";
 import { isAdminPhone } from "@/utils/admin";
 import { RK_STUDIO } from "@/utils/constants";
+import { getEnvBool } from "@/utils/env";
 
 const mapOtpErrorMessage = (error: unknown) => {
   if (!(error instanceof FirebaseError)) {
@@ -84,6 +84,7 @@ export default function LoginPage() {
   const { user, loading, setMockSession } = useAuth();
   const { trackAsync } = useGlobalLoading();
   const [firebaseConfigured, setFirebaseConfigured] = useState<boolean | null>(null);
+  const USE_MOCK_OTP = getEnvBool(process.env.NEXT_PUBLIC_USE_MOCK_OTP);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -110,6 +111,14 @@ export default function LoginPage() {
     setFirebaseConfigured(isFirebaseConfigured());
   }, []);
 
+  useEffect(() => {
+    console.log("ENV CHECK:", {
+      USE_MOCK_OTP,
+      RAW: process.env.NEXT_PUBLIC_USE_MOCK_OTP,
+      PROJECT: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    });
+  }, [USE_MOCK_OTP]);
+
   const handleSendOtp = async () => {
     setError("");
     setSuccess("");
@@ -128,17 +137,21 @@ export default function LoginPage() {
 
     try {
       setBusy(true);
-      if (useMockOtp) {
+      if (USE_MOCK_OTP) {
+        console.log("MOCK OTP MODE ENABLED");
         setPhone(formattedPhone);
         setOtpSent(true);
-        setSuccess("Mock OTP mode is enabled. Test code is ready.");
+        setSuccess(`Mock OTP sent: ${MOCK_OTP || "123456"}`);
+        setOtp(MOCK_OTP || "123456");
         return;
       }
 
+      console.log("REAL OTP FLOW");
       confirmationResultRef.current = await trackAsync(sendOtpToPhone(formattedPhone));
       setPhone(formattedPhone);
       setOtpSent(true);
     } catch (otpError) {
+      console.error("OTP ERROR:", otpError);
       setError(mapOtpErrorMessage(otpError));
     } finally {
       setBusy(false);
@@ -149,7 +162,7 @@ export default function LoginPage() {
     setError("");
     setSuccess("");
 
-    if (!useMockOtp && !confirmationResultRef.current) {
+    if (!USE_MOCK_OTP && !confirmationResultRef.current) {
       setError("Send OTP first.");
       return;
     }
@@ -162,7 +175,7 @@ export default function LoginPage() {
     try {
       setBusy(true);
 
-      if (useMockOtp) {
+      if (USE_MOCK_OTP) {
         if (!verifyMockOtp(otp)) {
           setError("Invalid OTP. Please check the test code.");
           return;
@@ -288,7 +301,7 @@ export default function LoginPage() {
                 <TextField
                   fullWidth
                   label="OTP"
-                  placeholder={useMockOtp ? "Enter test OTP" : "Enter 6-digit OTP"}
+                  placeholder={USE_MOCK_OTP ? "Enter test OTP" : "Enter 6-digit OTP"}
                   value={otp}
                   onChange={(event) => setOtp(event.target.value)}
                   sx={{ mb: 1.5 }}
@@ -298,13 +311,13 @@ export default function LoginPage() {
               {success ? <Alert severity="success">{success}</Alert> : null}
               {error ? <Alert severity="error">{error}</Alert> : null}
 
-              {!useMockOtp && firebaseConfigured === false ? (
+              {!USE_MOCK_OTP && firebaseConfigured === false ? (
                 <Alert severity="warning">
                   Service temporarily unavailable, continue via WhatsApp.
                 </Alert>
               ) : null}
 
-              {useMockOtp ? (
+              {USE_MOCK_OTP ? (
                 <Alert severity="info">
                   Mock OTP mode is active for testing. Test OTP: {MOCK_OTP || "not set"}
                 </Alert>
@@ -346,7 +359,7 @@ export default function LoginPage() {
                 </Button>
               )}
 
-              {!useMockOtp && firebaseConfigured === false ? (
+              {!USE_MOCK_OTP && firebaseConfigured === false ? (
                 <Button
                   component="a"
                   href={whatsappFallbackUrl}

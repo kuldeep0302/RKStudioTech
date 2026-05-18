@@ -9,6 +9,7 @@ import {
   subscribeToAllProducts,
   subscribeToProductsByCategory,
 } from "@/services/productService";
+import { useAutoSeed } from "@/hooks/useAutoSeed";
 
 type UseProductsParams = {
   category?: ProductCategory;
@@ -17,6 +18,8 @@ type UseProductsParams = {
 };
 
 export const useProducts = ({ category, paginated = false, pageSize = 24 }: UseProductsParams = {}) => {
+  useAutoSeed();
+
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);

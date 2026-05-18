@@ -527,46 +527,35 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleContinueWithWhatsAppPayment = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleWhatsAppPayment = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
 
-    // CRITICAL: Build URL and call window.open as the VERY FIRST action.
-    // Browsers only allow popups triggered directly within a user gesture;
-    // any state update or async call before window.open causes popup blocking.
-    const phone = RK_STUDIO.whatsappNumber || "918901501572";
-    const safeToken = token || "N/A";
-    const safeAmount = pricingBreakdown?.finalPayable ?? finalAmount ?? 0;
-
-    const immediateUrl = `https://wa.me/${phone}?text=${encodeURIComponent(
-      [
-        "Hello RK Studio, I want to complete my order.",
-        `Order ID: ${safeToken}`,
-        `Amount: \u20b9${safeAmount}`,
-      ].join("\n"),
-    )}`;
-
-    console.log("[checkout] Opening WhatsApp:", immediateUrl);
-
-    const newWindow = window.open(immediateUrl, "_blank", "noopener,noreferrer");
-    if (!newWindow) {
-      console.error("[checkout] Popup blocked — redirecting via location.href");
-      window.location.href = immediateUrl;
+    if (typeof window === "undefined") {
       return;
     }
 
-    // After window.open succeeds → run remaining UI and analytics work
-    setError("");
-    setSuccess("Continuing on WhatsApp. Complete your payment there.");
+    const phone = "919XXXXXXXXX";
+    const safeToken = token || "N/A";
+    const safeAmount = finalAmount || 0;
 
-    if (!pendingOrder) {
+    const message = `Order ID: ${safeToken} | Amount: ₹${safeAmount}`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+    const newWindow = window.open(url, "_blank");
+
+    console.log("WHATSAPP URL:", url);
+
+    if (!newWindow) {
+      console.warn("Popup blocked, fallback redirect");
+      window.location.href = url;
       return;
     }
 
     void trackAnalyticsEvent("payment_fallback_whatsapp", {
-      service: pendingOrder.service,
-      payment_type: pendingOrder.paymentType || "full",
-      value: finalAmount,
+      service: pendingOrder?.service || "fabric",
+      payment_type: pendingOrder?.paymentType || "full",
+      value: safeAmount,
     });
   };
 
@@ -766,9 +755,7 @@ export default function CheckoutPage() {
                   type="button"
                   variant="outlined"
                   color="success"
-                  onClick={handleContinueWithWhatsAppPayment}
-                  disabled={orderConfirmed}
-                  sx={actionButtonDisabledSx}
+                  onClick={handleWhatsAppPayment}
                 >
                   Continue via WhatsApp Payment
                 </Button>

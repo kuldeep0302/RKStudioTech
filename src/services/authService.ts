@@ -2,6 +2,7 @@ import { ConfirmationResult, RecaptchaVerifier, signInWithPhoneNumber, updatePro
 import { getFirebaseAuth } from "@/services/firebase";
 import { saveUserToFirestore } from "@/services/userService";
 import { AuthUser, UserRole } from "@/types/auth";
+import { getEnvBool } from "@/utils/env";
 
 declare global {
   interface Window {
@@ -24,11 +25,7 @@ export const normalizeIndianPhone = (value: string): string => {
 };
 
 export const MOCK_OTP = process.env.NEXT_PUBLIC_MOCK_OTP || "";
-export const useMockOtp = process.env.NEXT_PUBLIC_USE_MOCK_OTP === "true"
-  && (
-    process.env.NODE_ENV !== "production"
-    || process.env.NEXT_PUBLIC_ALLOW_PRODUCTION_MOCK_OTP === "true"
-  );
+export const useMockOtp = getEnvBool(process.env.NEXT_PUBLIC_USE_MOCK_OTP);
 
 export const createMockUser = (name: string, phone: string, role: UserRole): AuthUser => {
   const digits = phone.replace(/\D/g, "");

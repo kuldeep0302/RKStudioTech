@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminToken } from "@/utils/server/authUtils";
+import { getEnvBool } from "@/utils/env";
 
 type CheckResult = {
   key: string;
@@ -84,9 +85,13 @@ const buildChecks = () => {
     },
   ];
 
-  const mockOtpEnabled =
-    process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_USE_MOCK_OTP === "true";
+  const mockOtpEnabled = getEnvBool(process.env.NEXT_PUBLIC_USE_MOCK_OTP);
+
+  console.log("ENV CHECK:", {
+    USE_MOCK_OTP: mockOtpEnabled,
+    RAW: process.env.NEXT_PUBLIC_USE_MOCK_OTP,
+    PROJECT: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  });
 
   const otpChecks: CheckResult[] = [
     {

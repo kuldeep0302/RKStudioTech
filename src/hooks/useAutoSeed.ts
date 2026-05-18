@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { seedDummyProducts } from "@/services/productService";
+import { ensureData } from "@/services/productService";
 
 /**
  * Automatically seeds dummy products into Firestore on first client-side mount
@@ -21,6 +21,6 @@ export const useAutoSeed = () => {
 
     hasRun.current = true;
 
-    void seedDummyProducts();
+    void ensureData();
   }, []);
 };

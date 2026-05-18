@@ -21,6 +21,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { dupattaProducts, fabricProducts } from "@/data/mockProducts";
 import { getFirebaseDb, getFirebaseStorage } from "@/services/firebase";
+import { getEnvBool } from "@/utils/env";
 
 export type ProductCategory = "fabric" | "dupatta";
 
@@ -163,7 +164,7 @@ const dummyCatalogProducts: CatalogProduct[] = [...fabricProducts.slice(0, 3), .
 const byNewestFallback = (a: CatalogProduct, b: CatalogProduct) => a.id.localeCompare(b.id);
 const allowMockCatalogFallback =
   process.env.NODE_ENV !== "production"
-  || process.env.NEXT_PUBLIC_ENABLE_MOCK_CATALOG_FALLBACK === "true";
+  || getEnvBool(process.env.NEXT_PUBLIC_ENABLE_MOCK_CATALOG_FALLBACK);
 
 export type ProductPageCursor = QueryDocumentSnapshot<DocumentData> | null;
 
@@ -501,6 +502,52 @@ export const fetchProductsByCategory = async (category: ProductCategory): Promis
     return allowMockCatalogFallback
       ? dummyCatalogProducts.filter((p) => p.category === category)
       : [];
+  }
+};
+
+export const fetchProducts = async () => {
+  const db = getFirebaseDb();
+
+  if (!db) {
+    console.warn("[products] Firebase not configured for fetchProducts");
+    return [] as CatalogProduct[];
+  }
+
+  try {
+    console.log("Using project:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+    const snap = await getDocs(collection(db, "products"));
+
+    console.log("PRODUCT COUNT:", snap.size);
+
+    const products = snap.docs.map((productDoc) => ({
+      id: productDoc.id,
+      ...productDoc.data(),
+    })) as CatalogProduct[];
+
+    snap.forEach((productDoc) => {
+      console.log("DOC:", productDoc.id, productDoc.data());
+    });
+
+    return products;
+  } catch (err) {
+    console.error("FIRESTORE ERROR:", err);
+    return [] as CatalogProduct[];
+  }
+};
+
+export const debugFirestore = async (): Promise<number> => {
+  const products = await fetchProducts();
+  return products.length;
+};
+
+export const ensureData = async () => {
+  const count = await debugFirestore();
+
+  if (count === 0) {
+    console.warn("No data found -> seeding");
+    await seedDummyProducts();
+    const newCount = await debugFirestore();
+    console.log("After seed:", newCount);
   }
 };
 

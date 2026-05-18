@@ -183,7 +183,7 @@ export default function FabricPage() {
         {!loading && filteredProducts.length === 0 ? (
           <Stack spacing={1.25}>
             <Alert severity="info">
-              Currently no products available. Please check back later or contact us on WhatsApp.
+              No products available. Please contact via WhatsApp.
             </Alert>
             <Button
               component="a"
