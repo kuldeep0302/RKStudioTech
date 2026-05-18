@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useProducts } from "@/hooks/useProducts";
 import Layout from "@/components/layout/Layout";
 import { CatalogProduct } from "@/services/productService";
+import { RK_STUDIO } from "@/utils/constants";
 import { defaultFilters, ProductFilters } from "@/utils/filters";
 import { applyProductFilters } from "@/utils/filters";
 
@@ -35,6 +36,11 @@ export default function FabricPage() {
   const [filters, setFilters] = useState<ProductFilters>(defaultFilters);
   const [unitFilter, setUnitFilter] = useState<"all" | "meter" | "piece">("all");
   const infiniteScrollAnchorRef = useRef<HTMLDivElement | null>(null);
+  const whatsappSupportUrl = useMemo(() => {
+    const phone = RK_STUDIO.whatsappNumber || "918901501572";
+    const message = encodeURIComponent("Hi, I need help with product availability.");
+    return `https://wa.me/${phone}?text=${message}`;
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const nextProducts = applyProductFilters(products, filters);
@@ -175,7 +181,22 @@ export default function FabricPage() {
         ) : null}
 
         {!loading && filteredProducts.length === 0 ? (
-          <Alert severity="info">No products match the current filters.</Alert>
+          <Stack spacing={1.25}>
+            <Alert severity="info">
+              Currently no products available. Please check back later or contact us on WhatsApp.
+            </Alert>
+            <Button
+              component="a"
+              href={whatsappSupportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outlined"
+              color="success"
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Contact on WhatsApp
+            </Button>
+          </Stack>
         ) : null}
 
         {!loading && hasMore ? (
@@ -188,7 +209,18 @@ export default function FabricPage() {
               </Stack>
             ) : null}
             <Stack direction="row" justifyContent="center">
-              <Button variant="outlined" onClick={loadMore} disabled={loadingMore}>
+              <Button
+                variant="outlined"
+                onClick={loadMore}
+                disabled={loadingMore}
+                sx={{
+                  "&.Mui-disabled": {
+                    opacity: 0.55,
+                    cursor: "not-allowed",
+                    pointerEvents: "auto",
+                  },
+                }}
+              >
                 {loadingMore ? "Loading..." : "Load More"}
               </Button>
             </Stack>

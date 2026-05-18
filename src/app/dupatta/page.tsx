@@ -8,6 +8,7 @@ import { Alert, Box, Button, Chip, Skeleton, Stack, Typography } from "@mui/mate
 import { useEffect, useMemo, useRef, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { useProducts } from "@/hooks/useProducts";
+import { RK_STUDIO } from "@/utils/constants";
 
 const DupattaGrid = dynamic(
   () => import("@/features/dupatta/components/DupattaGrid"),
@@ -24,6 +25,11 @@ export default function DupattaPage() {
   } = useProducts({ category: "dupatta", paginated: true, pageSize: 24 });
   const [unitFilter, setUnitFilter] = useState<"all" | "meter" | "piece">("all");
   const infiniteScrollAnchorRef = useRef<HTMLDivElement | null>(null);
+  const whatsappSupportUrl = useMemo(() => {
+    const phone = RK_STUDIO.whatsappNumber || "918901501572";
+    const message = encodeURIComponent("Hi, I need help with product availability.");
+    return `https://wa.me/${phone}?text=${message}`;
+  }, []);
 
   const filteredProducts = useMemo(() => {
     if (unitFilter === "all") {
@@ -139,7 +145,22 @@ export default function DupattaPage() {
           <DupattaGrid products={filteredProducts} />
         )}
         {!loading && filteredProducts.length === 0 ? (
-          <Alert severity="info">No dupatta products are available right now. Please check again later.</Alert>
+          <Stack spacing={1.25}>
+            <Alert severity="info">
+              Currently no products available. Please check back later or contact us on WhatsApp.
+            </Alert>
+            <Button
+              component="a"
+              href={whatsappSupportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outlined"
+              color="success"
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Contact on WhatsApp
+            </Button>
+          </Stack>
         ) : null}
 
         {!loading && hasMore ? (
@@ -152,7 +173,18 @@ export default function DupattaPage() {
               </Stack>
             ) : null}
             <Stack direction="row" justifyContent="center">
-              <Button variant="outlined" onClick={loadMore} disabled={loadingMore}>
+              <Button
+                variant="outlined"
+                onClick={loadMore}
+                disabled={loadingMore}
+                sx={{
+                  "&.Mui-disabled": {
+                    opacity: 0.55,
+                    cursor: "not-allowed",
+                    pointerEvents: "auto",
+                  },
+                }}
+              >
                 {loadingMore ? "Loading..." : "Load More"}
               </Button>
             </Stack>

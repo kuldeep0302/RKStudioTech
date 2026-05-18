@@ -93,6 +93,8 @@ const logFirebaseEnvDebug = (runtimeConfig: FirebaseRuntimeConfig) => {
     return;
   }
 
+  console.log("Firebase Project:", runtimeConfig.requiredConfig.projectId);
+
   console.info("[firebase] env debug", {
     configured: runtimeConfig.configured,
     missingKeys: runtimeConfig.missingKeys,

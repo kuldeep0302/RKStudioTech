@@ -39,6 +39,13 @@ export default function CheckoutPage() {
   const [razorpayEnabled, setRazorpayEnabled] = useState(false);
   const [paymentConfigLoading, setPaymentConfigLoading] = useState(true);
   const allowUpiFallback = Boolean(RK_STUDIO.payment.upiId);
+  const actionButtonDisabledSx = {
+    "&.Mui-disabled": {
+      opacity: 0.55,
+      cursor: "not-allowed",
+      pointerEvents: "auto",
+    },
+  };
 
   const openExternalLink = (url: string, source: string) => {
     if (typeof window === "undefined") {
@@ -562,17 +569,17 @@ export default function CheckoutPage() {
       "Please share payment scanner / QR and next steps.",
     ];
 
+    const phone = RK_STUDIO.whatsappNumber || "918901501572";
+    const directMessage = encodeURIComponent(`Order ID: ${token}\nAmount: ₹${fallbackBreakdown.finalPayable || 0}\n\nHi, I want to confirm my order via WhatsApp.`);
+    const directUrl = `https://wa.me/${phone}?text=${directMessage}`;
+    console.info("[checkout] whatsapp manual payment url", { directUrl, phone });
+
     const url = buildWhatsAppUrl({
       name: pendingOrder.customerName,
       phone: pendingOrder.customerPhone,
       service: pendingOrder.service,
       details: manualPaymentDetails,
     });
-
-    if (!url) {
-      setError("Service temporarily unavailable");
-      return;
-    }
 
     void trackAnalyticsEvent("payment_fallback_whatsapp", {
       service: pendingOrder.service,
@@ -581,7 +588,7 @@ export default function CheckoutPage() {
     });
 
     setSuccess("Online payment is not working right now. Continue payment on WhatsApp with scanner/QR support.");
-    openExternalLink(url, "manual-whatsapp");
+    openExternalLink(url || directUrl, "manual-whatsapp");
   };
 
   const renderTitle = () => {
@@ -614,7 +621,7 @@ export default function CheckoutPage() {
 
         <Card>
           <CardContent>
-            <Stack spacing={2.5}>
+            <Stack spacing={2.5} sx={{ textAlign: "left" }}>
               <Typography variant="h5">{renderTitle()}</Typography>
 
               {!paymentConfigLoading && !razorpayEnabled ? (
@@ -771,6 +778,7 @@ export default function CheckoutPage() {
                   variant="contained"
                   onClick={handlePayAndConfirm}
                   disabled={submitting || orderConfirmed || !hasValidPaymentSession}
+                  sx={actionButtonDisabledSx}
                 >
                   {submitting ? "Processing..." : "Pay and Confirm"}
                 </Button>
@@ -779,6 +787,7 @@ export default function CheckoutPage() {
                   color="success"
                   onClick={handleContinueWithWhatsAppPayment}
                   disabled={submitting || orderConfirmed || !hasValidPaymentSession}
+                  sx={actionButtonDisabledSx}
                 >
                   Continue via WhatsApp Payment
                 </Button>

@@ -315,11 +315,33 @@ export default function LoginPage() {
               </Typography>
 
               {!otpSent ? (
-                <Button variant="contained" onClick={handleSendOtp} disabled={busy}>
+                <Button
+                  variant="contained"
+                  onClick={handleSendOtp}
+                  disabled={busy}
+                  sx={{
+                    "&.Mui-disabled": {
+                      opacity: 0.55,
+                      cursor: "not-allowed",
+                      pointerEvents: "auto",
+                    },
+                  }}
+                >
                   {busy ? "Sending..." : "Send OTP"}
                 </Button>
               ) : (
-                <Button variant="contained" onClick={handleVerifyOtp} disabled={busy}>
+                <Button
+                  variant="contained"
+                  onClick={handleVerifyOtp}
+                  disabled={busy}
+                  sx={{
+                    "&.Mui-disabled": {
+                      opacity: 0.55,
+                      cursor: "not-allowed",
+                      pointerEvents: "auto",
+                    },
+                  }}
+                >
                   {busy ? "Verifying..." : "Verify OTP"}
                 </Button>
               )}

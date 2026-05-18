@@ -301,6 +301,8 @@ export const subscribeToProductsByCategory = (
 ) => {
   const db = getFirebaseDb();
 
+  console.log("Fetching products for category:", category);
+
   if (!db) {
     onProducts(allowMockCatalogFallback ? dummyCatalogProducts.filter((product) => product.category === category) : []);
     return () => undefined;
@@ -342,6 +344,8 @@ export const getProductsByCategoryPage = async (
 ): Promise<ProductPageResult> => {
   const db = getFirebaseDb();
 
+  console.log("Fetching products for category:", category);
+
   if (!db) {
     const all = dummyCatalogProducts.filter((product) => product.category === category);
     const startIndex = 0;
@@ -372,7 +376,16 @@ export const getProductsByCategoryPage = async (
       );
 
     snapshot = await getDocs(productsQuery);
-  } catch {
+  } catch (queryError) {
+    console.error("Firestore fetch error:", queryError);
+
+    try {
+      const allProductsSnapshot = await getDocs(collection(db, "products"));
+      console.log("ALL PRODUCTS:", allProductsSnapshot.docs.map((snapshotDoc) => snapshotDoc.data()));
+    } catch (allProductsError) {
+      console.error("Firestore fetch error:", allProductsError);
+    }
+
     const fallbackQuery = cursor
       ? query(collection(db, "products"), startAfter(cursor), limit(pageSize * 2))
       : query(collection(db, "products"), limit(pageSize * 2));
@@ -380,6 +393,8 @@ export const getProductsByCategoryPage = async (
     try {
       snapshot = await getDocs(fallbackQuery);
     } catch (fallbackError) {
+      console.error("Firestore fetch error:", fallbackError);
+
       if (allowMockCatalogFallback) {
         console.warn("[products] firestore page query failed, using mock fallback", {
           category,
@@ -395,7 +410,11 @@ export const getProductsByCategoryPage = async (
         };
       }
 
-      throw fallbackError;
+      return {
+        products: [],
+        cursor,
+        hasMore: false,
+      };
     }
   }
 
