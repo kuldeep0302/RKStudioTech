@@ -30,16 +30,20 @@ import { useOrders } from "@/hooks/useOrders";
 import {
   getNextOrderStatus,
   markOrderPaymentAsPaid,
+  OrderApprovalStatus,
   OrderDetails,
   OrderServiceType,
   OrderStatus,
+  updateOrderApprovalStatus,
   updateOrderStatus,
   UserOrder,
 } from "@/services/orderService";
-import { AppUser, subscribeToAllUsers } from "@/services/userService";
+import { AppUser, deleteUserById, subscribeToAllUsers, updateUserRole } from "@/services/userService";
 import { clearDummyProducts, seedDummyProducts } from "@/services/productService";
 import { useAutoSeed } from "@/hooks/useAutoSeed";
 import PreLaunchFlow from "@/features/admin/PreLaunchFlow";
+import { UserRole } from "@/types/auth";
+import { buildUserOrderDecisionWhatsAppUrl, openWhatsAppInNewTab } from "@/utils/whatsapp";
 
 const formatStatusLabel = (status: OrderStatus) => {
   if (status === "pending") return "Pending";
@@ -176,6 +180,18 @@ const getPaymentChipColor = (status: UserOrder["paymentStatus"]) => {
 
   if (status === "partial") {
     return "info" as const;
+  }
+
+  return "warning" as const;
+};
+
+const getApprovalChipColor = (status?: OrderApprovalStatus) => {
+  if (status === "accepted") {
+    return "success" as const;
+  }
+
+  if (status === "rejected") {
+    return "error" as const;
   }
 
   return "warning" as const;
@@ -331,13 +347,16 @@ export default function AdminDashboard() {
   const [successMessage, setSuccessMessage] = useState("");
   const [updatingOrderId, setUpdatingOrderId] = useState("");
   const [updatingPaymentOrderId, setUpdatingPaymentOrderId] = useState("");
+  const [updatingApprovalOrderId, setUpdatingApprovalOrderId] = useState("");
+  const [updatingUserRoleId, setUpdatingUserRoleId] = useState("");
+  const [deletingUserId, setDeletingUserId] = useState("");
   const [launchFlowOpen, setLaunchFlowOpen] = useState(false);
   const [readiness, setReadiness] = useState<ReadinessResponse | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
   const [seedStatus, setSeedStatus] = useState<"idle" | "seeding" | "clearing" | "done">("idle");
   const [seedMessage, setSeedMessage] = useState("");
 
-  useAutoSeed();
+  useAutoSeed(true);
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (user?.provider === "mock") {
@@ -570,6 +589,76 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleApprovalStatus = async (order: UserOrder, approvalStatus: OrderApprovalStatus) => {
+    if (approvalStatus === "pending") {
+      return;
+    }
+
+    try {
+      setUpdatingApprovalOrderId(order.id);
+      await trackAsync(updateOrderApprovalStatus(order.id, approvalStatus, user?.phoneNumber || "admin"));
+
+      const linkedUser = usersById[order.userId];
+      const userPhone = (order.phone || linkedUser?.phone || "").replace(/\D/g, "");
+      const waUrl = buildUserOrderDecisionWhatsAppUrl({
+        phone: userPhone,
+        status: approvalStatus,
+      });
+
+      if (waUrl) {
+        openWhatsAppInNewTab(waUrl);
+      }
+
+      setSuccessMessage(`Order ${approvalStatus}. User notification prepared on WhatsApp.`);
+    } catch {
+      setError("Could not update order approval status.");
+    } finally {
+      setUpdatingApprovalOrderId("");
+    }
+  };
+
+  const handleSetUserRole = async (appUser: AppUser, nextRole: UserRole) => {
+    if (appUser.role === nextRole) {
+      return;
+    }
+
+    try {
+      setUpdatingUserRoleId(appUser.id);
+      await trackAsync(updateUserRole(appUser.id, nextRole));
+      setSuccessMessage(`${appUser.name || "User"} is now ${nextRole}.`);
+    } catch {
+      setError("Could not update user role.");
+    } finally {
+      setUpdatingUserRoleId("");
+    }
+  };
+
+  const handleDeleteUser = async (appUser: AppUser) => {
+    const myPhone = (user?.phoneNumber || "").replace(/\D/g, "").slice(-10);
+    const targetPhone = (appUser.phone || "").replace(/\D/g, "").slice(-10);
+
+    if (myPhone && myPhone === targetPhone) {
+      setError("You cannot delete your own admin account.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete user ${appUser.name || appUser.phone || "this user"}?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingUserId(appUser.id);
+      await trackAsync(deleteUserById(appUser.id));
+      setSuccessMessage("User deleted successfully.");
+    } catch {
+      setError("Could not delete user.");
+    } finally {
+      setDeletingUserId("");
+    }
+  };
+
   return (
     <Layout>
       <Stack spacing={3}>
@@ -596,6 +685,10 @@ export default function AdminDashboard() {
                   Launch App
                 </Button>
               </Stack>
+
+              <Typography variant="body2" color="text.secondary">
+                Sections: Users | Products | Orders | Analytics
+              </Typography>
             </Stack>
           </CardContent>
         </Card>
@@ -868,6 +961,7 @@ export default function AdminDashboard() {
                       <TableCell>Service</TableCell>
                       <TableCell>Payment</TableCell>
                       <TableCell>Details</TableCell>
+                      <TableCell>Approval</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Date</TableCell>
                       <TableCell>Action</TableCell>
@@ -879,6 +973,7 @@ export default function AdminDashboard() {
                       const userName = linkedUser?.name || "User";
                       const userPhone = linkedUser?.phone || "";
                       const nextStatus = getNextOrderStatus(order.status);
+                      const currentApprovalStatus = order.approvalStatus || "pending";
                       const detailsText = createOrderDetailsText(order);
                       const sizeSummary = getOrderSizeSummary(order);
 
@@ -913,11 +1008,38 @@ export default function AdminDashboard() {
                             </Stack>
                           </TableCell>
                           <TableCell>
+                            <Chip
+                              label={currentApprovalStatus.charAt(0).toUpperCase() + currentApprovalStatus.slice(1)}
+                              size="small"
+                              color={getApprovalChipColor(currentApprovalStatus)}
+                            />
+                          </TableCell>
+                          <TableCell>
                             <Chip label={formatStatusLabel(order.status)} size="small" color={order.status === "done" ? "success" : "warning"} />
                           </TableCell>
                           <TableCell>{formatDate(order.createdAt)}</TableCell>
                           <TableCell>
                             <Stack direction="row" spacing={1}>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="success"
+                                onClick={() => handleApprovalStatus(order, "accepted")}
+                                disabled={updatingApprovalOrderId === order.id || currentApprovalStatus === "accepted"}
+                              >
+                                Accept
+                              </Button>
+
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                onClick={() => handleApprovalStatus(order, "rejected")}
+                                disabled={updatingApprovalOrderId === order.id || currentApprovalStatus === "rejected"}
+                              >
+                                Reject
+                              </Button>
+
                               {nextStatus ? (
                                 <Button
                                   size="small"
@@ -938,7 +1060,7 @@ export default function AdminDashboard() {
 
                     {filteredOrders.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8}>No orders found for selected filters.</TableCell>
+                        <TableCell colSpan={9}>No orders found for selected filters.</TableCell>
                       </TableRow>
                     ) : null}
                   </TableBody>
@@ -969,23 +1091,68 @@ export default function AdminDashboard() {
                     <TableRow>
                       <TableCell>Name</TableCell>
                       <TableCell>Phone</TableCell>
+                      <TableCell>Role</TableCell>
                       <TableCell>Total Orders</TableCell>
+                      <TableCell>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {searchedUsers.map((appUser) => {
+                      const isWorking = updatingUserRoleId === appUser.id || deletingUserId === appUser.id;
+
                       return (
                         <TableRow key={appUser.id}>
                           <TableCell>{appUser.name || "-"}</TableCell>
                           <TableCell>{appUser.phone || "-"}</TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={appUser.role === "admin" ? "Admin" : "User"}
+                              color={appUser.role === "admin" ? "success" : "default"}
+                            />
+                          </TableCell>
                           <TableCell>{orderCountByUserId[appUser.id] || 0}</TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1}>
+                              {appUser.role === "admin" ? (
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => handleSetUserRole(appUser, "user")}
+                                  disabled={isWorking}
+                                >
+                                  Remove Admin
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="success"
+                                  onClick={() => handleSetUserRole(appUser, "admin")}
+                                  disabled={isWorking}
+                                >
+                                  Make Admin
+                                </Button>
+                              )}
+
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                onClick={() => handleDeleteUser(appUser)}
+                                disabled={isWorking}
+                              >
+                                Delete
+                              </Button>
+                            </Stack>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
 
                     {searchedUsers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3}>No users found.</TableCell>
+                        <TableCell colSpan={5}>No users found.</TableCell>
                       </TableRow>
                     ) : null}
                   </TableBody>

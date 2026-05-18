@@ -18,6 +18,7 @@ import { PricingType } from "@/utils/pricing";
 
 export type OrderServiceType = "tailoring" | "fabric" | "dupatta";
 export type OrderStatus = "pending" | "in progress" | "done" | "in_progress";
+export type OrderApprovalStatus = "pending" | "accepted" | "rejected";
 export type PaymentStatus = "pending" | "partial" | "paid";
 export type PaymentType = "advance" | "full";
 
@@ -49,6 +50,9 @@ export interface OrderDetails {
 export type UserOrder = {
   id: string;
   userId: string;
+  phone?: string | null;
+  items?: string[];
+  total?: number | null;
   service: OrderServiceType;
   productId?: string | null;
   orderDetails: OrderDetails;
@@ -67,6 +71,7 @@ export type UserOrder = {
   quantityOrMeter?: number | null;
   paymentId?: string | null;
   status: OrderStatus;
+  approvalStatus?: OrderApprovalStatus;
   statusHistory: OrderHistoryItem[];
   assignedTo?: string | null;
   createdAt: Timestamp | null;
@@ -126,6 +131,7 @@ export const saveOrderToFirestore = async ({
     quantityOrMeter: pricingSnapshot?.quantityOrMeter ?? null,
     paymentId: paymentId || null,
     status: "pending",
+    approvalStatus: "pending",
     statusHistory: [
       {
         status: "pending",
@@ -204,6 +210,10 @@ export const subscribeToAllOrders = (
           quantityOrMeter: typeof data.quantityOrMeter === "number" ? data.quantityOrMeter : null,
           paymentId: data.paymentId || null,
           status: (data.status || "pending") as OrderStatus,
+          approvalStatus: (data.approvalStatus || "pending") as OrderApprovalStatus,
+          phone: data.phone || null,
+          items: Array.isArray(data.items) ? data.items as string[] : [],
+          total: typeof data.total === "number" ? data.total : null,
           statusHistory: (data.statusHistory || []) as OrderHistoryItem[],
           assignedTo: data.assignedTo || null,
           createdAt: data.createdAt || null,
@@ -251,6 +261,10 @@ export const fetchAllOrders = async (): Promise<UserOrder[]> => {
         quantityOrMeter: typeof data.quantityOrMeter === "number" ? data.quantityOrMeter : null,
         paymentId: data.paymentId || null,
         status: (data.status || "pending") as OrderStatus,
+        approvalStatus: (data.approvalStatus || "pending") as OrderApprovalStatus,
+        phone: data.phone || null,
+        items: Array.isArray(data.items) ? data.items as string[] : [],
+        total: typeof data.total === "number" ? data.total : null,
         statusHistory: (data.statusHistory || []) as OrderHistoryItem[],
         assignedTo: data.assignedTo || null,
         createdAt: data.createdAt || null,
@@ -302,6 +316,29 @@ export const updateOrderStatus = async (
       status,
       updatedAt: Timestamp.now(),
       note: note || "Status updated",
+      updatedBy: updatedBy || "admin",
+    }),
+  });
+};
+
+export const updateOrderApprovalStatus = async (
+  orderId: string,
+  approvalStatus: OrderApprovalStatus,
+  updatedBy?: string,
+) => {
+  const db = getFirebaseDb();
+
+  if (!db) {
+    throw new Error("Firebase is not configured.");
+  }
+
+  await updateDoc(doc(db, "orders", orderId), {
+    approvalStatus,
+    approvalUpdatedAt: Timestamp.now(),
+    statusHistory: arrayUnion({
+      status: "pending",
+      updatedAt: Timestamp.now(),
+      note: `Approval ${approvalStatus}`,
       updatedBy: updatedBy || "admin",
     }),
   });
@@ -380,6 +417,10 @@ export const subscribeToUserOrders = (
           quantityOrMeter: typeof data.quantityOrMeter === "number" ? data.quantityOrMeter : null,
           paymentId: data.paymentId || null,
           status: (data.status || "pending") as OrderStatus,
+          approvalStatus: (data.approvalStatus || "pending") as OrderApprovalStatus,
+          phone: data.phone || null,
+          items: Array.isArray(data.items) ? data.items as string[] : [],
+          total: typeof data.total === "number" ? data.total : null,
           statusHistory: (data.statusHistory || []) as OrderHistoryItem[],
           assignedTo: data.assignedTo || null,
           createdAt: data.createdAt || null,

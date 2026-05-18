@@ -1,10 +1,23 @@
-import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { getFirebaseDb } from "@/services/firebase";
+import { UserRole } from "@/types/auth";
 
 type SaveUserInput = {
   uid: string;
   name?: string;
   phone?: string;
+  role?: UserRole;
   savedFabricIds?: string[];
 };
 
@@ -12,11 +25,12 @@ export type AppUser = {
   id: string;
   name: string;
   phone: string;
+  role: UserRole;
   savedFabricIds?: string[];
   createdAt: Timestamp | null;
 };
 
-export const saveUserToFirestore = async ({ uid, name, phone, savedFabricIds }: SaveUserInput) => {
+export const saveUserToFirestore = async ({ uid, name, phone, role, savedFabricIds }: SaveUserInput) => {
   const db = getFirebaseDb();
 
   if (!db) {
@@ -33,6 +47,10 @@ export const saveUserToFirestore = async ({ uid, name, phone, savedFabricIds }: 
 
   if (typeof phone !== "undefined") {
     payload.phone = phone;
+  }
+
+  if (typeof role !== "undefined") {
+    payload.role = role;
   }
 
   if (typeof savedFabricIds !== "undefined") {
@@ -72,6 +90,7 @@ export const subscribeToUser = (
         id: snapshot.id,
         name: data.name || "-",
         phone: data.phone || "-",
+        role: (data.role || "user") as UserRole,
         savedFabricIds: Array.isArray(data.savedFabricIds) ? data.savedFabricIds : [],
         createdAt: data.createdAt || null,
       });
@@ -105,6 +124,7 @@ export const subscribeToAllUsers = (
           id: userDoc.id,
           name: data.name || "-",
           phone: data.phone || "-",
+          role: (data.role || "user") as UserRole,
           savedFabricIds: Array.isArray(data.savedFabricIds) ? data.savedFabricIds : [],
           createdAt: data.createdAt || null,
         };
@@ -116,4 +136,27 @@ export const subscribeToAllUsers = (
       onError?.(error as Error);
     },
   );
+};
+
+export const updateUserRole = async (userId: string, role: UserRole) => {
+  const db = getFirebaseDb();
+
+  if (!db) {
+    throw new Error("Firebase is not configured.");
+  }
+
+  await updateDoc(doc(db, "users", userId), {
+    role,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteUserById = async (userId: string) => {
+  const db = getFirebaseDb();
+
+  if (!db) {
+    throw new Error("Firebase is not configured.");
+  }
+
+  await deleteDoc(doc(db, "users", userId));
 };

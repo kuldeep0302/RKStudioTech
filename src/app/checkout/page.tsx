@@ -13,7 +13,7 @@ import { removeFabricCartItem, removeFabricCartItems } from "@/utils/fabricCart"
 import { startRazorpayPayment, buildUpiPaymentLink } from "@/utils/payment";
 import { clearPendingPaymentOrder, readPendingPaymentOrder } from "@/utils/paymentSession";
 import { calculatePricingBreakdown, PricingBreakdown } from "@/utils/pricing";
-import { buildWhatsAppUrl } from "@/utils/whatsapp";
+import { buildAdminOrderWhatsAppUrl, openWhatsAppInNewTab } from "@/utils/whatsapp";
 
 type PaymentMethod = "razorpay" | "upi";
 
@@ -341,6 +341,10 @@ export default function CheckoutPage() {
       remaining_amount: pricingBreakdown.remainingAmount,
     };
 
+    const lineItems = pendingOrder.whatsappDetails
+      .filter((line) => /fabric|dupatta|item|design|type/i.test(line))
+      .slice(0, 5);
+
     const finalizeResponse = await fetch("/api/orders/finalize", {
       method: "POST",
       headers: {
@@ -350,6 +354,8 @@ export default function CheckoutPage() {
       body: JSON.stringify({
         userId: pendingOrder.userId,
         service: pendingOrder.service,
+        customerPhone: pendingOrder.customerPhone,
+        items: lineItems,
         productId: pendingOrder.productId,
         orderDetails: enrichedOrderDetails,
         paymentType: pendingOrder.paymentType,
@@ -408,11 +414,10 @@ export default function CheckoutPage() {
 
     clearPendingPaymentOrder(token);
 
-    const url = buildWhatsAppUrl({
-      name: pendingOrder.customerName,
+    const url = buildAdminOrderWhatsAppUrl({
       phone: pendingOrder.customerPhone,
-      service: pendingOrder.service,
-      details: whatsappDetails,
+      items: lineItems.length > 0 ? lineItems : whatsappDetails.slice(0, 4),
+      total: pricingBreakdown.finalPayable,
     });
 
     if (!url) {
@@ -420,7 +425,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    window.location.href = url;
+    openWhatsAppInNewTab(url);
   };
 
   const handlePayAndConfirm = async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ensureData } from "@/services/productService";
+import { ensureAdminBootstrapData } from "@/services/adminSeedService";
 
 /**
  * Automatically seeds dummy products into Firestore on first client-side mount
@@ -11,16 +11,20 @@ import { ensureData } from "@/services/productService";
  * Usage: call this hook once in a top-level client component (e.g. the admin
  * dashboard or a layout wrapper).
  */
-export const useAutoSeed = () => {
+export const useAutoSeed = (isAdmin = false) => {
   const hasRun = useRef(false);
 
   useEffect(() => {
+    if (!isAdmin) {
+      return;
+    }
+
     if (hasRun.current) {
       return;
     }
 
     hasRun.current = true;
 
-    void ensureData();
-  }, []);
+    void ensureAdminBootstrapData();
+  }, [isAdmin]);
 };

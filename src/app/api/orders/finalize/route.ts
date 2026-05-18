@@ -17,6 +17,8 @@ const lineItemSchema = z.object({
 const finalizeSchema = z.object({
   userId: z.string().min(1),
   service: z.enum(["tailoring", "fabric", "dupatta"]),
+  customerPhone: z.string().optional(),
+  items: z.array(z.string()).optional(),
   productId: z.string().optional(),
   orderDetails: z.record(z.string(), z.unknown()),
   paymentType: z.enum(["advance", "full"]),
@@ -210,6 +212,9 @@ export async function POST(request: NextRequest) {
       transaction.set(orderRef, {
         id: orderRef.id,
         userId: input.userId,
+        phone: input.customerPhone || null,
+        items: input.items || [],
+        total: pricing.finalPayable,
         service: input.service,
         productId: input.productId || null,
         orderDetails: {
@@ -243,6 +248,7 @@ export async function POST(request: NextRequest) {
         quantityOrMeter: pricing.quantityOrMeter,
         paymentId: input.paymentId,
         status: "pending",
+        approvalStatus: "pending",
         statusHistory: [
           {
             status: "pending",
