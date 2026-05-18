@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getProductById } from "@/services/productService";
+import { getFirebaseAdminDb } from "@/utils/server/firebaseAdmin";
 import {
   calculatePricingBreakdown,
   calculatePricingForLineItems,
@@ -25,6 +26,16 @@ const pricingSchema = z.object({
 
 type PricingRequestInput = z.infer<typeof pricingSchema>;
 
+type PricingProduct = {
+  price: number;
+  marketPrice?: number;
+  pricingType: "meter" | "piece";
+  pricePerUnit?: number;
+  discountPercentage?: number;
+  advancePercentage?: number;
+  productType?: "fabric" | "piece";
+};
+
 const getTailoringFallbackPricing = () => {
   const marketPrice = Number(process.env.NEXT_PUBLIC_TAILORING_MARKET_PRICE || 1000);
   const pricePerUnit = Number(process.env.NEXT_PUBLIC_TAILORING_PRICE_PER_UNIT || marketPrice);
@@ -41,7 +52,7 @@ const getTailoringFallbackPricing = () => {
 };
 
 const buildPricingFromProduct = (
-  product: NonNullable<Awaited<ReturnType<typeof getProductById>>>,
+  product: PricingProduct,
   quantityOrMeter: number,
 ): PricingCalculationInput => {
   return {
@@ -51,6 +62,69 @@ const buildPricingFromProduct = (
     quantityOrMeter,
     discountPercentage: product.discountPercentage ?? 5,
     advancePercentage: product.advancePercentage ?? 20,
+  };
+};
+
+const toFiniteNumber = (value: unknown, fallback: number) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizePricingType = (value: unknown, productType: unknown): "meter" | "piece" => {
+  if (value === "meter" || value === "piece") {
+    return value;
+  }
+
+  if (productType === "fabric") {
+    return "meter";
+  }
+
+  return "piece";
+};
+
+const getProductForPricing = async (productId: string): Promise<PricingProduct | null> => {
+  try {
+    const adminDb = getFirebaseAdminDb();
+    const productSnap = await adminDb.collection("products").doc(productId).get();
+
+    if (productSnap.exists) {
+      const data = productSnap.data() as Record<string, unknown>;
+      const price = toFiniteNumber(data.price, 0);
+      const marketPrice = toFiniteNumber(data.marketPrice, price);
+      const pricingType = normalizePricingType(data.pricingType, data.productType);
+      const pricePerUnit = toFiniteNumber(data.pricePerUnit, price);
+
+      return {
+        price,
+        marketPrice,
+        pricingType,
+        pricePerUnit,
+        discountPercentage: toFiniteNumber(data.discountPercentage, 5),
+        advancePercentage: toFiniteNumber(data.advancePercentage, 20),
+        productType: data.productType === "fabric" ? "fabric" : "piece",
+      };
+    }
+  } catch (adminLookupError) {
+    console.warn("[pricing] admin product lookup failed, falling back to client product lookup", {
+      productId,
+      error: String(adminLookupError),
+    });
+  }
+
+  const fallbackProduct = await getProductById(productId);
+
+  if (!fallbackProduct) {
+    return null;
+  }
+
+  return {
+    price: fallbackProduct.price,
+    marketPrice: fallbackProduct.marketPrice,
+    pricingType: fallbackProduct.pricingType,
+    pricePerUnit: fallbackProduct.pricePerUnit,
+    discountPercentage: fallbackProduct.discountPercentage,
+    advancePercentage: fallbackProduct.advancePercentage,
+    productType: fallbackProduct.productType,
   };
 };
 
@@ -102,7 +176,7 @@ export async function POST(request: NextRequest) {
       const linePricingInputs: PricingCalculationInput[] = [];
 
       for (const line of input.lineItems) {
-        const product = await getProductById(line.productId);
+        const product = await getProductForPricing(line.productId);
 
         if (!product) {
           return NextResponse.json(
@@ -140,10 +214,10 @@ export async function POST(request: NextRequest) {
     let pricingInput: PricingCalculationInput;
 
     if (input.productId) {
-      let product: Awaited<ReturnType<typeof getProductById>> = null;
+      let product: PricingProduct | null = null;
 
       try {
-        product = await getProductById(input.productId);
+        product = await getProductForPricing(input.productId);
       } catch (productLookupError) {
         if (input.service === "tailoring") {
           return buildTailoringFallbackResponse(input, `product_lookup_failed:${String(productLookupError)}`);

@@ -117,10 +117,6 @@ export const isFirebaseConfigured = (): boolean => {
 };
 
 export const getFirebaseApp = (): FirebaseApp | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
   const runtimeConfig = getFirebaseConfig();
   logFirebaseEnvDebug(runtimeConfig);
 
@@ -153,6 +149,10 @@ export const getFirebaseApp = (): FirebaseApp | null => {
 };
 
 export const getFirebaseAuth = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   const app = getFirebaseApp();
   return app ? getAuth(app) : null;
 };

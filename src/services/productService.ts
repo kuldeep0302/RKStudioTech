@@ -263,6 +263,10 @@ export const getProductById = async (id: string): Promise<CatalogProduct | null>
   const productSnap = await getDoc(productRef);
 
   if (!productSnap.exists()) {
+    if (allowMockCatalogFallback) {
+      return dummyCatalogProducts.find((product) => product.id === id) || null;
+    }
+
     return null;
   }
 
