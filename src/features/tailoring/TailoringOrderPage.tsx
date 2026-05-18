@@ -24,6 +24,7 @@ import { useCallback, useEffect, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { getFirebaseAuth } from "@/services/firebase";
+import { createMockAccessToken } from "@/services/authService";
 import { calculatePricingBreakdown } from "@/utils/pricing";
 import { CapacityInfo, PickupDropOption, TailorCapacity, WorkType } from "@/types/tailoring";
 import {
@@ -83,6 +84,12 @@ export default function TailoringOrderPage() {
   });
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    if (user?.provider === "mock") {
+      return {
+        Authorization: `Bearer ${createMockAccessToken(user)}`,
+      };
+    }
+
     const auth = getFirebaseAuth();
     const token = await auth?.currentUser?.getIdToken();
 

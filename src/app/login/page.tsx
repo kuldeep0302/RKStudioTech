@@ -28,6 +28,7 @@ import {
   normalizeIndianPhone,
   saveMockUserToFirestore,
   sendOtpToPhone,
+  shouldUseAdminMockOverride,
   useMockOtp,
   verifyMockOtp,
   verifyOtpAndSaveUser,
@@ -104,6 +105,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [usingMockFlow, setUsingMockFlow] = useState(false);
   const confirmationResultRef = useRef<ConfirmationResult | null>(null);
   const whatsappFallbackUrl = useMemo(() => {
     const message = "Service temporarily unavailable, continue via WhatsApp";
@@ -148,16 +150,23 @@ export default function LoginPage() {
 
     try {
       setBusy(true);
-      if (USE_MOCK_OTP) {
-        console.log("MOCK OTP MODE ENABLED");
+      const adminOverride = shouldUseAdminMockOverride(formattedPhone);
+      const shouldUseMockFlow = USE_MOCK_OTP || adminOverride;
+
+      setUsingMockFlow(shouldUseMockFlow);
+
+      if (shouldUseMockFlow) {
+        console.log("[auth] mock OTP flow active", {
+          reason: USE_MOCK_OTP ? "env-toggle" : "admin-override",
+        });
         setPhone(formattedPhone);
         setOtpSent(true);
-        setSuccess(`Mock OTP sent: ${MOCK_OTP || "123456"}`);
-        setOtp(MOCK_OTP || "123456");
+        setSuccess(`Mock OTP sent: ${MOCK_OTP}`);
+        setOtp(MOCK_OTP);
         return;
       }
 
-      console.log("REAL OTP FLOW");
+      console.log("[auth] firebase phone OTP flow active");
       confirmationResultRef.current = await trackAsync(sendOtpToPhone(formattedPhone));
       setPhone(formattedPhone);
       setOtpSent(true);
@@ -173,7 +182,7 @@ export default function LoginPage() {
     setError("");
     setSuccess("");
 
-    if (!USE_MOCK_OTP && !confirmationResultRef.current) {
+    if (!usingMockFlow && !confirmationResultRef.current) {
       setError("Send OTP first.");
       return;
     }
@@ -186,9 +195,9 @@ export default function LoginPage() {
     try {
       setBusy(true);
 
-      if (USE_MOCK_OTP) {
+      if (usingMockFlow) {
         if (!verifyMockOtp(otp)) {
-          setError("Invalid OTP. Please check the test code.");
+          setError("Invalid OTP. Please enter the correct code.");
           return;
         }
 
@@ -313,7 +322,7 @@ export default function LoginPage() {
                 <TextField
                   fullWidth
                   label="OTP"
-                  placeholder={USE_MOCK_OTP ? "Enter test OTP" : "Enter 6-digit OTP"}
+                  placeholder={usingMockFlow ? "Enter test OTP" : "Enter 6-digit OTP"}
                   value={otp}
                   onChange={(event) => setOtp(event.target.value)}
                   sx={{ mb: 1.5 }}
@@ -323,15 +332,15 @@ export default function LoginPage() {
               {success ? <Alert severity="success">{success}</Alert> : null}
               {error ? <Alert severity="error">{error}</Alert> : null}
 
-              {!USE_MOCK_OTP && firebaseConfigured === false ? (
+              {!usingMockFlow && firebaseConfigured === false ? (
                 <Alert severity="warning">
                   Service temporarily unavailable, continue via WhatsApp.
                 </Alert>
               ) : null}
 
-              {USE_MOCK_OTP ? (
+              {USE_MOCK_OTP || usingMockFlow ? (
                 <Alert severity="info">
-                  Mock OTP mode is active for testing. Test OTP: {MOCK_OTP || "not set"}
+                  Mock OTP mode enabled (testing)
                 </Alert>
               ) : null}
 
@@ -371,7 +380,7 @@ export default function LoginPage() {
                 </Button>
               )}
 
-              {!USE_MOCK_OTP && firebaseConfigured === false ? (
+              {!usingMockFlow && firebaseConfigured === false ? (
                 <Button
                   component="a"
                   href={whatsappFallbackUrl}

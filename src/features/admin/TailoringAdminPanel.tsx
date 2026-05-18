@@ -26,6 +26,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getFirebaseAuth } from "@/services/firebase";
+import { createMockAccessToken } from "@/services/authService";
 import { TailorCapacity } from "@/types/tailoring";
 
 export default function TailoringAdminPanel() {
@@ -84,7 +85,7 @@ export default function TailoringAdminPanel() {
 
   const getAuthToken = async (): Promise<string> => {
     if (user?.provider === "mock") {
-      return `mock:${user.uid}:${user.role || "user"}`;
+      return createMockAccessToken(user);
     }
 
     const auth = getFirebaseAuth();

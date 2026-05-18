@@ -18,6 +18,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { getFirebaseAuth } from "@/services/firebase";
+import { createMockAccessToken } from "@/services/authService";
 import { OrderDetails } from "@/services/orderService";
 import { AppUser, subscribeToUser } from "@/services/userService";
 import { readFabricCart, removeFabricCartItem, removeFabricCartItems } from "@/utils/fabricCart";
@@ -382,7 +383,7 @@ export default function CheckoutPage() {
 
       return {
         headers: {
-          Authorization: `Bearer mock:${user.uid}:${user.role || "user"}`,
+          Authorization: `Bearer ${createMockAccessToken(user)}`,
         },
         uid: user.uid,
         phone: mockPhone,

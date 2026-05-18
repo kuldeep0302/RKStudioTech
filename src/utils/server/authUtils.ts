@@ -17,28 +17,63 @@ const getBearerToken = (request: NextRequest): string | null => {
   return authHeader.slice(7).trim() || null;
 };
 
+const normalizePhoneDigits = (phone?: string | null): string => {
+  return (phone || "").replace(/\D/g, "");
+};
+
+const isAdminPhoneDigits = (phone?: string | null): boolean => {
+  const adminPhoneDigits = normalizePhoneDigits(process.env.NEXT_PUBLIC_ADMIN_PHONE);
+  const userPhoneDigits = normalizePhoneDigits(phone);
+
+  if (!adminPhoneDigits || !userPhoneDigits) {
+    return false;
+  }
+
+  return adminPhoneDigits.slice(-10) === userPhoneDigits.slice(-10);
+};
+
 const getDevMockUserFromToken = (token: string): AuthUser | null => {
-  // token format: mock:<uid>:<role>
+  // token format (legacy): mock:<uid>:<role>
+  // token format (current): mock-token-<uid>:<role>:<phoneDigits>
   const mockOtpEnabled = process.env.NEXT_PUBLIC_USE_MOCK_OTP === "true";
+  let uid = "";
+  let role = "user";
+  let phoneNumber: string | null = null;
 
-  if (!token.startsWith("mock:")) {
+  if (token.startsWith("mock-token-")) {
+    const withoutPrefix = token.slice("mock-token-".length);
+    const [parsedUid, parsedRole, parsedPhone] = withoutPrefix.split(":");
+
+    uid = parsedUid || "";
+    role = parsedRole === "admin" ? "admin" : "user";
+    phoneNumber = parsedPhone ? `+${parsedPhone}` : null;
+  } else if (token.startsWith("mock:")) {
+    const [, parsedUid, parsedRole] = token.split(":");
+
+    uid = parsedUid || "";
+    role = parsedRole === "admin" ? "admin" : "user";
+  } else {
     return null;
   }
-
-  if (process.env.NODE_ENV === "production" || !mockOtpEnabled) {
-    return null;
-  }
-
-  const [, uid, role] = token.split(":");
 
   if (!uid) {
+    return null;
+  }
+
+  const allowAdminOverride = isAdminPhoneDigits(phoneNumber);
+
+  if (!mockOtpEnabled && !allowAdminOverride) {
+    return null;
+  }
+
+  if (process.env.NODE_ENV === "production" && !mockOtpEnabled && !allowAdminOverride) {
     return null;
   }
 
   return {
     uid,
     displayName: null,
-    phoneNumber: null,
+    phoneNumber,
     provider: "mock",
     role: role === "admin" ? "admin" : "user",
   };

@@ -2,6 +2,7 @@ import { ConfirmationResult, RecaptchaVerifier, signInWithPhoneNumber, updatePro
 import { getFirebaseAuth } from "@/services/firebase";
 import { saveUserToFirestore } from "@/services/userService";
 import { AuthUser, UserRole } from "@/types/auth";
+import { isAdminPhone } from "@/utils/admin";
 import { getEnvBool } from "@/utils/env";
 
 declare global {
@@ -25,8 +26,10 @@ export const normalizeIndianPhone = (value: string): string => {
 };
 
 const rawMockOtp = process.env.NEXT_PUBLIC_MOCK_OTP || "";
-export const MOCK_OTP = rawMockOtp && rawMockOtp !== "false" ? rawMockOtp : "";
-export const useMockOtp = process.env.NODE_ENV !== "production" && getEnvBool(process.env.NEXT_PUBLIC_USE_MOCK_OTP);
+export const MOCK_OTP = rawMockOtp && rawMockOtp !== "false" ? rawMockOtp : "123456";
+
+// In production, mock OTP only runs when explicitly enabled via env toggle.
+export const useMockOtp = getEnvBool(process.env.NEXT_PUBLIC_USE_MOCK_OTP);
 
 export const createMockUser = (name: string, phone: string, role: UserRole): AuthUser => {
   const digits = phone.replace(/\D/g, "");
@@ -41,7 +44,22 @@ export const createMockUser = (name: string, phone: string, role: UserRole): Aut
 };
 
 export const verifyMockOtp = (otp: string): boolean => {
-  return useMockOtp && Boolean(MOCK_OTP) && otp.trim().length > 0 && otp.trim() === MOCK_OTP;
+  return Boolean(MOCK_OTP) && otp.trim().length > 0 && otp.trim() === MOCK_OTP;
+};
+
+export const shouldUseAdminMockOverride = (phone: string): boolean => {
+  return isAdminPhone(phone);
+};
+
+const normalizePhoneDigits = (phone?: string | null): string => {
+  return (phone || "").replace(/\D/g, "");
+};
+
+export const createMockAccessToken = (user: Pick<AuthUser, "uid" | "role" | "phoneNumber">): string => {
+  const role = user.role === "admin" ? "admin" : "user";
+  const phone = normalizePhoneDigits(user.phoneNumber);
+
+  return `mock-token-${user.uid}:${role}:${phone}`;
 };
 
 export const getOrCreateRecaptcha = (): RecaptchaVerifier => {

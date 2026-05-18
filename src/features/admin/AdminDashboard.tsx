@@ -28,6 +28,7 @@ import Layout from "@/components/layout/Layout";
 import { useGlobalLoading } from "@/context/LoadingContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getFirebaseAuth } from "@/services/firebase";
+import { createMockAccessToken } from "@/services/authService";
 import { useOrders } from "@/hooks/useOrders";
 import {
   markOrderPaymentAsPaid,
@@ -344,7 +345,7 @@ export default function AdminDashboard() {
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (user?.provider === "mock") {
       return {
-        Authorization: `Bearer mock:${user.uid}:${user.role || "admin"}`,
+        Authorization: `Bearer ${createMockAccessToken(user)}`,
       };
     }
 
