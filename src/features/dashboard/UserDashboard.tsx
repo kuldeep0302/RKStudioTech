@@ -25,6 +25,7 @@ import { useOrders } from "@/hooks/useOrders";
 import { useProducts } from "@/hooks/useProducts";
 import { OrderHistoryItem, OrderStatus, UserOrder } from "@/services/orderService";
 import { AppUser, saveUserToFirestore, subscribeToUser } from "@/services/userService";
+import { showError } from "@/utils/toast";
 
 const formatOrderDate = (order: UserOrder) => {
   if (!order.createdAt) {
@@ -101,6 +102,12 @@ export default function UserDashboard() {
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [profileError, setProfileError] = useState("");
   const [removingFabricId, setRemovingFabricId] = useState("");
+
+  useEffect(() => {
+    if (error) {
+      showError(error);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -276,8 +283,6 @@ export default function UserDashboard() {
           <Stack spacing={2}>
             <Typography variant="h5">My Orders</Typography>
 
-            {error ? <Alert severity="error">{error}</Alert> : null}
-
             {loading ? (
               <Stack alignItems="center" py={6}>
                 <CircularProgress />
@@ -285,7 +290,7 @@ export default function UserDashboard() {
             ) : null}
 
             {!loading && orders.length === 0 ? (
-              <Alert severity="info">No orders yet. Place an order from Tailoring, Fabric, or Dupatta pages.</Alert>
+              <Alert severity="info">No orders yet. Start shopping now.</Alert>
             ) : null}
 
             {!loading && orders.length > 0 ? (
@@ -297,6 +302,7 @@ export default function UserDashboard() {
                         <TableCell>Status</TableCell>
                         <TableCell>Date</TableCell>
                       <TableCell>Status Timeline</TableCell>
+                      <TableCell>Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -317,6 +323,11 @@ export default function UserDashboard() {
                                 ))
                               : <Typography variant="caption" color="text.secondary">No history yet</Typography>}
                           </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Button component={Link} href={`/my-orders/${order.id}`} size="small" variant="outlined">
+                            Track Order
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

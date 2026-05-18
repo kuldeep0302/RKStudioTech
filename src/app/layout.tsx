@@ -7,6 +7,7 @@ import FirebaseAnalyticsBootstrap from "@/components/common/FirebaseAnalyticsBoo
 import { getBrandingLogoPath } from "@/branding/logoConfig";
 import { AuthProvider } from "@/context/AuthContext";
 import { LoadingProvider } from "@/context/LoadingContext";
+import { ToastProvider } from "@/context/ToastContext";
 import theme from "@/theme/theme";
 import "./globals.css";
 
@@ -37,12 +38,14 @@ export default function RootLayout({
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <LoadingProvider>
-              <AuthProvider>
-                <FirebaseAnalyticsBootstrap />
-                <AppShell>{children}</AppShell>
-              </AuthProvider>
-            </LoadingProvider>
+            <ToastProvider>
+              <LoadingProvider>
+                <AuthProvider>
+                  <FirebaseAnalyticsBootstrap />
+                  <AppShell>{children}</AppShell>
+                </AuthProvider>
+              </LoadingProvider>
+            </ToastProvider>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>

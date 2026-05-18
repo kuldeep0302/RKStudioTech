@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getFirebaseAuth, getFirebaseDb } from "@/services/firebase";
 import { getOrderStatusMessage, OrderStatus, UserOrder, normalizeOrderStatus } from "@/services/orderService";
 import { readMockOrdersForUser } from "@/utils/mockOrderStore";
+import { getFriendlyErrorMessage, uiDevLogError } from "@/utils/uiFeedback";
 import { buildWhatsAppChatUrl, formatPhone } from "@/utils/whatsapp";
 
 const getStatusColor = (status: OrderStatus) => {
@@ -66,6 +67,7 @@ export default function MyOrdersPage() {
   const [orders, setOrders] = useState<UserOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,14 +144,14 @@ export default function MyOrdersPage() {
           : "";
 
         if (errorCode === "permission-denied") {
-          console.error("My Orders permission error: query must filter by authenticated userId.", fetchError);
+          uiDevLogError("My Orders permission error: query must filter by authenticated userId.", fetchError);
           if (!cancelled) {
             setError("Could not load your orders due to a permissions issue. Please sign in again.");
           }
         } else {
-          console.error("My Orders fetch error:", fetchError);
+          uiDevLogError("My Orders fetch error:", fetchError);
           if (!cancelled) {
-            setError("Could not fetch orders.");
+            setError(getFriendlyErrorMessage(fetchError, "Could not fetch orders. Please try again."));
           }
         }
 
@@ -168,7 +170,7 @@ export default function MyOrdersPage() {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, authUser?.uid]);
+  }, [authLoading, authUser?.uid, refreshKey]);
 
   const latestOrder = orders[0];
   const supportPhone = formatPhone("9198901501572");
@@ -189,7 +191,18 @@ export default function MyOrdersPage() {
               </Alert>
             ) : null}
 
-            {error ? <Alert severity="error">{error}</Alert> : null}
+            {error ? (
+              <Alert
+                severity="error"
+                action={(
+                  <Button color="inherit" size="small" onClick={() => setRefreshKey((prev) => prev + 1)}>
+                    Retry
+                  </Button>
+                )}
+              >
+                {error}
+              </Alert>
+            ) : null}
 
             {loading ? (
               <Stack alignItems="center" py={6}>
@@ -198,7 +211,7 @@ export default function MyOrdersPage() {
             ) : null}
 
             {!loading && orders.length === 0 ? (
-              <Alert severity="info">No orders yet — place your first order</Alert>
+              <Alert severity="info">No orders yet. Start shopping now.</Alert>
             ) : null}
 
             {!loading && orders.length > 0 ? (

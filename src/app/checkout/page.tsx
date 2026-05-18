@@ -8,7 +8,6 @@ import {
   CardContent,
   CircularProgress,
   Divider,
-  Snackbar,
   Stack,
   Typography,
 } from "@mui/material";
@@ -25,6 +24,7 @@ import { readFabricCart, removeFabricCartItem, removeFabricCartItems } from "@/u
 import { clearPendingPaymentOrder, readPendingPaymentOrder } from "@/utils/paymentSession";
 import { PricingBreakdown, calculatePricingBreakdown } from "@/utils/pricing";
 import { saveMockOrderFromCheckout } from "@/utils/mockOrderStore";
+import { hideToast, showError, showLoading, showSuccess } from "@/utils/toast";
 import { buildWhatsAppChatUrl, formatPhone } from "@/utils/whatsapp";
 
 type FinalizeResponse = {
@@ -194,8 +194,6 @@ export default function CheckoutPage() {
   const [pricingLoading, setPricingLoading] = useState(false);
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [orderFailed, setOrderFailed] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const [toastSeverity, setToastSeverity] = useState<"success" | "error">("success");
   const submitLockRef = useRef(false);
   const supportPhone = formatPhone("9198901501572");
   const supportUrl = buildWhatsAppChatUrl(supportPhone, "Hi, I need help with my order");
@@ -212,6 +210,7 @@ export default function CheckoutPage() {
 
     if (!token) {
       setError("Order session not found. Please start your order again.");
+      showError("Order session not found. Please start your order again.");
       setLoading(false);
       return;
     }
@@ -220,6 +219,7 @@ export default function CheckoutPage() {
 
     if (!pending) {
       setError("Order session expired. Please start your order again.");
+      showError("Order session expired. Please start your order again.");
       setLoading(false);
       return;
     }
@@ -374,6 +374,7 @@ export default function CheckoutPage() {
           ? pricingError.message
           : "Unable to calculate pricing.";
         setError(message);
+        showError(message);
       } finally {
         if (!ignore) {
           setPricingLoading(false);
@@ -468,6 +469,7 @@ export default function CheckoutPage() {
 
     if (!user) {
       setError("Please login to place order");
+      showError("Please login to place order");
       return;
     }
 
@@ -476,21 +478,26 @@ export default function CheckoutPage() {
 
     if (!pendingOrder || !pricingBreakdown) {
       setError("Order details are missing. Please try again.");
+      showError("Order details are missing. Please try again.");
       setOrderFailed(true);
       return;
     }
 
     if (!pendingOrder.customerName?.trim()) {
       setError("Customer name is required.");
+      showError("Customer name is required.");
       setOrderFailed(true);
       return;
     }
 
     if (payableNow <= 0) {
       setError("Invalid payable amount. Please try again.");
+      showError("Invalid payable amount. Please try again.");
       setOrderFailed(true);
       return;
     }
+
+    const loadingToastId = showLoading("Placing your order...");
 
     try {
       setSubmitting(true);
@@ -605,16 +612,18 @@ export default function CheckoutPage() {
       }
 
       clearPendingPaymentOrder(token);
-      setToastSeverity("success");
-      setToastMessage("Order created successfully.");
-      router.replace(`/order-success?orderId=${encodeURIComponent(payload.orderId)}&orderCode=${encodeURIComponent(payload.businessOrderId || payload.orderId)}`);
+      hideToast(loadingToastId);
+      showSuccess("Order placed successfully");
+      router.replace(
+        `/order-success?orderId=${encodeURIComponent(payload.orderId)}&orderCode=${encodeURIComponent(payload.businessOrderId || payload.orderId)}&amount=${encodeURIComponent(String(payableNow))}`
+      );
     } catch (placeError) {
       submitLockRef.current = false;
       setOrderFailed(true);
       const message = placeError instanceof Error ? placeError.message : "Could not place order.";
       setError(message);
-      setToastSeverity("error");
-      setToastMessage(message);
+      hideToast(loadingToastId);
+      showError(message);
     } finally {
       setSubmitting(false);
     }
@@ -690,7 +699,6 @@ export default function CheckoutPage() {
               ) : null}
 
               {pricingNotice ? <Alert severity="warning">{pricingNotice}</Alert> : null}
-              {error ? <Alert severity="error">{error}</Alert> : null}
 
               <Alert severity="info">Estimated delivery timeline: 3-5 working days after order confirmation.</Alert>
 
@@ -728,16 +736,6 @@ export default function CheckoutPage() {
             </Stack>
           </CardContent>
         </Card>
-        <Snackbar
-          open={Boolean(toastMessage)}
-          autoHideDuration={2500}
-          onClose={() => setToastMessage("")}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        >
-          <Alert severity={toastSeverity} onClose={() => setToastMessage("")} sx={{ width: "100%" }}>
-            {toastMessage}
-          </Alert>
-        </Snackbar>
       </Stack>
     </Layout>
   );

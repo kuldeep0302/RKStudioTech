@@ -28,13 +28,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { getFirebaseAuth } from "@/services/firebase";
 import { createMockAccessToken } from "@/services/authService";
 import { TailorCapacity } from "@/types/tailoring";
+import { showError, showSuccess } from "@/utils/toast";
 
 export default function TailoringAdminPanel() {
   const { user } = useAuth();
   const [tailors, setTailors] = useState<TailorCapacity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editingTailor, setEditingTailor] = useState<TailorCapacity | null>(null);
@@ -75,9 +74,7 @@ export default function TailoringAdminPanel() {
       const data = await response.json();
       setTailors(data.tailors || []);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Could not load tailors",
-      );
+      showError(err instanceof Error ? err.message : "Could not load tailors");
     } finally {
       setLoading(false);
     }
@@ -139,9 +136,6 @@ export default function TailoringAdminPanel() {
 
   const handleSave = async (): Promise<void> => {
     try {
-      setError("");
-      setSuccess("");
-
       const token = await getAuthToken();
 
       if (editingTailor?.id) {
@@ -157,7 +151,7 @@ export default function TailoringAdminPanel() {
 
         if (!response.ok) throw new Error("Failed to update tailor");
 
-        setSuccess("Tailor updated successfully");
+        showSuccess("Tailor updated successfully");
       } else {
         // Create new tailor
         const response = await fetch("/api/admin/tailors", {
@@ -171,15 +165,13 @@ export default function TailoringAdminPanel() {
 
         if (!response.ok) throw new Error("Failed to create tailor");
 
-        setSuccess("Tailor created successfully");
+        showSuccess("Tailor created successfully");
       }
 
       handleCloseDialog();
       fetchTailors();
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Operation failed",
-      );
+      showError(err instanceof Error ? err.message : "Operation failed");
     }
   };
 
@@ -193,9 +185,6 @@ export default function TailoringAdminPanel() {
 
   return (
     <Stack spacing={3}>
-      {error && <Alert severity="error">{error}</Alert>}
-      {success && <Alert severity="success">{success}</Alert>}
-
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>
           Tailors Management

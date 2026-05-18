@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { resolveUserRoleFromFirestore } from "@/services/userRoleService";
+import { uiDevLogError } from "@/utils/uiFeedback";
 
 const UserDashboard = dynamic(() => import("@/features/dashboard/UserDashboard"), {
   loading: () => (
@@ -49,7 +50,7 @@ export default function DashboardPage() {
         });
         setUserRole(role);
       } catch (err) {
-        console.error("ROLE FETCH ERROR:", err);
+        uiDevLogError("ROLE FETCH ERROR:", err);
         setUserRole("user");
       }
     };

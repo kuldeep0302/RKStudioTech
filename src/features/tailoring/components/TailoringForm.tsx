@@ -22,6 +22,7 @@ import {
   getSuggestedMeasurementsForSize,
   parseMeasurementNumber,
 } from "@/features/tailoring/utils/sizeSuggestions";
+import { showError } from "@/utils/toast";
 import TailoringStepper from "./TailoringStepper";
 
 type FabricSource = "" | "own" | "external" | "rkstudio";
@@ -219,6 +220,12 @@ export default function TailoringForm() {
   const [hasSavedSizeProfile, setHasSavedSizeProfile] = useState(false);
   const [sizeProfileFeedback, setSizeProfileFeedback] = useState("");
   const [isAutoSuggestedMeasurement, setIsAutoSuggestedMeasurement] = useState(false);
+
+  useEffect(() => {
+    if (error) {
+      showError(error);
+    }
+  }, [error]);
 
   const isLast = activeStep === stepLabels.length - 1;
 
@@ -1625,8 +1632,6 @@ export default function TailoringForm() {
                 </Typography>
               </Stack>
             ) : null}
-
-            {error ? <Alert severity="error">{error}</Alert> : null}
 
             <Stack direction="row" justifyContent="space-between">
               <Button variant="outlined" onClick={handleBack} disabled={activeStep === 0}>

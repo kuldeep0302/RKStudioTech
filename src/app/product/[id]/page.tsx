@@ -14,7 +14,6 @@ import {
   CircularProgress,
   Divider,
   Rating,
-  Snackbar,
   Stack,
   TextField,
   Typography,
@@ -29,6 +28,7 @@ import { getProductById, ProductCategory } from "@/services/productService";
 import { trackAnalyticsEvent } from "@/utils/analytics";
 import { formatINR } from "@/utils/currency";
 import { addFabricItemToCart } from "@/utils/fabricCart";
+import { showError, showSuccess } from "@/utils/toast";
 
 const isCategory = (value: string | null): value is ProductCategory => value === "fabric" || value === "dupatta";
 
@@ -42,8 +42,6 @@ export default function ProductDetailsPage() {
 
   const { products, loading } = useProducts(category ? { category } : {});
 
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [pricePulse, setPricePulse] = useState(false);
   const [fallbackProduct, setFallbackProduct] = useState<Awaited<ReturnType<typeof getProductById>>>(null);
@@ -132,8 +130,6 @@ export default function ProductDetailsPage() {
   };
 
   const handleAddToCart = async () => {
-    setError("");
-
     try {
       if (!resolvedProduct) {
         return;
@@ -164,10 +160,10 @@ export default function ProductDetailsPage() {
         value: totalPrice,
       });
 
-      setNotice("Product added to cart.");
+      showSuccess("Product added to cart.");
       router.push("/cart");
     } catch {
-      setError("Could not add product to cart. Please try again.");
+      showError("Could not add product to cart. Please try again.");
     }
   };
 
@@ -381,14 +377,6 @@ export default function ProductDetailsPage() {
           </Grid>
         ) : null}
 
-        {error ? <Alert severity="error">{error}</Alert> : null}
-
-        <Snackbar
-          open={Boolean(notice)}
-          autoHideDuration={2200}
-          onClose={() => setNotice("")}
-          message={notice}
-        />
       </Stack>
     </Layout>
   );

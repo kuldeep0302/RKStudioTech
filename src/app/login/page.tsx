@@ -36,6 +36,8 @@ import {
 import { UserRole } from "@/types/auth";
 import { isAdminPhone } from "@/utils/admin";
 import { RK_STUDIO } from "@/utils/constants";
+import { showError, showSuccess } from "@/utils/toast";
+import { uiDevLogError } from "@/utils/uiFeedback";
 
 const mapOtpErrorMessage = (error: unknown) => {
   if (!(error instanceof FirebaseError)) {
@@ -138,6 +140,7 @@ export default function LoginPage() {
 
     if (!name.trim()) {
       setError("Please enter your name.");
+      showError("Please enter your name.");
       return;
     }
 
@@ -145,6 +148,7 @@ export default function LoginPage() {
 
     if (!formattedPhone.startsWith("+") || formattedPhone.length < 13) {
       setError("Please enter a valid Indian phone number.");
+      showError("Please enter a valid Indian phone number.");
       return;
     }
 
@@ -160,6 +164,7 @@ export default function LoginPage() {
         setPhone(formattedPhone);
         setOtpSent(true);
         setSuccess(`Mock OTP sent: ${MOCK_OTP}`);
+        showSuccess(`Mock OTP sent: ${MOCK_OTP}`);
         setOtp(MOCK_OTP);
         return;
       }
@@ -169,8 +174,10 @@ export default function LoginPage() {
       setPhone(formattedPhone);
       setOtpSent(true);
     } catch (otpError) {
-      console.error("OTP ERROR:", otpError);
-      setError(mapOtpErrorMessage(otpError));
+      uiDevLogError("OTP ERROR:", otpError);
+      const message = mapOtpErrorMessage(otpError);
+      setError(message);
+      showError(message);
     } finally {
       setBusy(false);
     }
@@ -182,11 +189,13 @@ export default function LoginPage() {
 
     if (!usingMockFlow && !confirmationResultRef.current) {
       setError("Send OTP first.");
+      showError("Send OTP first.");
       return;
     }
 
     if (!otp) {
       setError("Enter OTP.");
+      showError("Enter OTP.");
       return;
     }
 
@@ -196,11 +205,13 @@ export default function LoginPage() {
       if (usingMockFlow) {
         if (!verifyMockOtp(otp)) {
           setError("Invalid OTP. Please enter the correct code.");
+          showError("Invalid OTP. Please enter the correct code.");
           return;
         }
 
         if (role === "admin" && !isAdminPhone(phone)) {
           setError("Admin access is only allowed for approved admin numbers.");
+          showError("Admin access is only allowed for approved admin numbers.");
           return;
         }
 
@@ -208,14 +219,18 @@ export default function LoginPage() {
         setMockSession(mockUser);
         await trackAsync(saveMockUserToFirestore(mockUser));
         setSuccess("Login successful with mock OTP.");
+        showSuccess("Login successful with mock OTP.");
       } else {
         await trackAsync(verifyOtpAndSaveUser(confirmationResultRef.current as ConfirmationResult, otp, name, phone));
+        showSuccess("Login successful.");
       }
 
       const safeNext = getSafeNext();
       router.replace(safeNext || (role === "admin" ? "/admin" : "/dashboard"));
     } catch (verifyError) {
-      setError(mapVerifyOtpErrorMessage(verifyError));
+      const message = mapVerifyOtpErrorMessage(verifyError);
+      setError(message);
+      showError(message);
     } finally {
       setBusy(false);
     }
@@ -326,9 +341,6 @@ export default function LoginPage() {
                   sx={{ mb: 1.5 }}
                 />
               ) : null}
-
-              {success ? <Alert severity="success">{success}</Alert> : null}
-              {error ? <Alert severity="error">{error}</Alert> : null}
 
               {!usingMockFlow && firebaseConfigured === false ? (
                 <Alert severity="warning">

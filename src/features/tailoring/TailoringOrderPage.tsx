@@ -37,6 +37,8 @@ import {
   getSuggestedMeasurementsForSize,
   parseMeasurementNumber,
 } from "@/features/tailoring/utils/sizeSuggestions";
+import { showError, showSuccess } from "@/utils/toast";
+import { uiDevLogError } from "@/utils/uiFeedback";
 
 const CUSTOM_SIZE_VALUE = "custom";
 
@@ -82,6 +84,18 @@ export default function TailoringOrderPage() {
     pickupCharge,
     dropCharge,
   });
+
+  useEffect(() => {
+    if (error) {
+      showError(error);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      showSuccess(success);
+    }
+  }, [success]);
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (user?.provider === "mock") {
@@ -228,7 +242,7 @@ export default function TailoringOrderPage() {
           return;
         }
 
-        console.error("Error fetching tailors:", err);
+        uiDevLogError("Error fetching tailors:", err);
         setError("Could not load tailors. Please try again shortly.");
       }
     };
@@ -261,7 +275,7 @@ export default function TailoringOrderPage() {
           setCapacityInfo(data);
         }
       } catch (err) {
-        console.error("Error fetching capacity:", err);
+        uiDevLogError("Error fetching capacity:", err);
       }
     };
 
@@ -416,9 +430,6 @@ export default function TailoringOrderPage() {
                   Select a tailor and place your order.
                 </Typography>
               </Box>
-
-              {error && <Alert severity="error">{error}</Alert>}
-              {success && <Alert severity="success">{success}</Alert>}
 
               {/* Tailor Selection */}
               <FormControl fullWidth>

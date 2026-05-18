@@ -46,6 +46,8 @@ import {
   uploadProductImage,
   updateProduct,
 } from "@/services/productService";
+import { showError, showSuccess } from "@/utils/toast";
+import { uiDevLogError } from "@/utils/uiFeedback";
 
 type FormState = {
   name: string;
@@ -139,8 +141,6 @@ export default function AdminProductsManagement() {
   const [productsError, setProductsError] = useState("");
   const [form, setForm] = useState<FormState>(initialForm);
   const [editingId, setEditingId] = useState("");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState("");
@@ -177,7 +177,7 @@ export default function AdminProductsManagement() {
         setProductsError("");
         setLoading(false);
       } catch (err) {
-        console.error("ADMIN FETCH ERROR:", err);
+        uiDevLogError("ADMIN FETCH ERROR:", err);
         setProducts([]);
         setProductsError("Could not fetch products.");
         setLoading(false);
@@ -275,7 +275,7 @@ export default function AdminProductsManagement() {
             fallbackText: `${form.name} ${form.type} ${form.tag}`,
           });
           setAiEngine("fallback");
-          setNotice("Vision API unavailable. Applied local AI suggestion.");
+          showSuccess("Vision API unavailable. Applied local AI suggestion.");
         }
       } else {
         suggestion = await analyzeProductImageWithAI({
@@ -286,9 +286,9 @@ export default function AdminProductsManagement() {
       }
 
       applyAiSuggestion(suggestion);
-      setNotice("AI analysis complete. Fields were pre-filled.");
+      showSuccess("AI analysis complete. Fields were pre-filled.");
     } catch {
-      setError("AI image analysis could not complete. Please try again.");
+      showError("AI image analysis could not complete. Please try again.");
     } finally {
       setAnalyzingImage(false);
     }
@@ -331,11 +331,10 @@ export default function AdminProductsManagement() {
   };
 
   const handleSubmit = async () => {
-    setError("");
     const validationError = validate();
 
     if (validationError) {
-      setError(validationError);
+      showError(validationError);
       return;
     }
 
@@ -362,15 +361,15 @@ export default function AdminProductsManagement() {
 
       if (editingId) {
         await trackAsync(updateProduct(editingId, payload));
-        setNotice("Product updated.");
+        showSuccess("Product updated.");
       } else {
         await trackAsync(addProduct(payload));
-        setNotice("Product added.");
+        showSuccess("Product added.");
       }
 
       resetForm();
     } catch {
-      setError("Product was not saved. Please check Firebase setup.");
+      showError("Product was not saved. Please check Firebase setup.");
     } finally {
       setSaving(false);
     }
@@ -378,16 +377,15 @@ export default function AdminProductsManagement() {
 
   const processSelectedImage = async (file: File) => {
     if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
-      setError(`Upload an image smaller than ${MAX_UPLOAD_MB}MB.`);
+      showError(`Upload an image smaller than ${MAX_UPLOAD_MB}MB.`);
       return;
     }
 
     if (!file.type.startsWith("image/")) {
-      setError("Please upload a valid image file.");
+      showError("Please upload a valid image file.");
       return;
     }
 
-    setError("");
     setUploadingImage(true);
 
     try {
@@ -412,9 +410,9 @@ export default function AdminProductsManagement() {
 
       const uploadedUrl = await trackAsync(uploadProductImage(compressed));
       setField("image", uploadedUrl);
-      setNotice("Image uploaded.");
+      showSuccess("Image uploaded.");
     } catch {
-      setError("Image upload failed. Please check Firebase Storage setup.");
+      showError("Image upload failed. Please check Firebase Storage setup.");
       setImagePreview("");
       setCompressionInfo("");
     } finally {
@@ -480,28 +478,24 @@ export default function AdminProductsManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    setError("");
-
     try {
       await trackAsync(removeProduct(id));
-      setNotice("Product deleted.");
+      showSuccess("Product deleted.");
       if (editingId === id) {
         resetForm();
       }
     } catch {
-      setError("Could not delete product.");
+      showError("Could not delete product.");
     }
   };
 
   const handleToggleActive = async (product: CatalogProduct) => {
-    setError("");
-
     try {
       await trackAsync(setProductActiveState(product.id, product.isActive === false));
-      setNotice(product.isActive === false ? "Product activated." : "Product deactivated.");
+      showSuccess(product.isActive === false ? "Product activated." : "Product deactivated.");
     } catch (toggleError) {
-      console.error(toggleError);
-      setError("Could not update product visibility.");
+      uiDevLogError(toggleError);
+      showError("Could not update product visibility.");
     }
   };
 
@@ -542,8 +536,6 @@ export default function AdminProductsManagement() {
         </Card>
 
         {productsError ? <Alert severity="warning">{productsError}</Alert> : null}
-        {error ? <Alert severity="error">{error}</Alert> : null}
-        {notice ? <Alert severity="success" onClose={() => setNotice("")}>{notice}</Alert> : null}
 
         <Card>
           <CardContent>

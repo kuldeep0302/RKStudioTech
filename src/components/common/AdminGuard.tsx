@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { resolveUserRoleFromFirestore } from "@/services/userRoleService";
+import { uiDevLogError } from "@/utils/uiFeedback";
 
 type AdminGuardProps = {
   children: ReactNode;
@@ -33,7 +34,7 @@ export default function AdminGuard({ children }: AdminGuardProps) {
         });
         setIsAdmin(role === "admin");
       } catch (err) {
-        console.error("ADMIN CHECK - ROLE FETCH ERROR:", err);
+        uiDevLogError("ADMIN CHECK - ROLE FETCH ERROR:", err);
         setIsAdmin(false);
       }
     };
@@ -43,7 +44,7 @@ export default function AdminGuard({ children }: AdminGuardProps) {
 
   useEffect(() => {
     if (isAdmin === false) {
-      router.replace("/");
+      router.replace("/access-denied");
     }
   }, [isAdmin, router]);
 

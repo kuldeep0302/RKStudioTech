@@ -17,6 +17,8 @@ import Layout from "@/components/layout/Layout";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrders } from "@/hooks/useOrders";
+import { useEffect } from "react";
+import { showError } from "@/utils/toast";
 import { buildWhatsAppChatUrl, formatPhone } from "@/utils/whatsapp";
 
 const formatDate = (date?: { toDate?: () => Date } | null) => {
@@ -52,6 +54,12 @@ export default function MyOrderDetailsPage() {
   const measurements = order?.orderDetails?.measurements;
   const fabricDetails = order?.orderDetails?.fabricDetails;
 
+  useEffect(() => {
+    if (error) {
+      showError(error);
+    }
+  }, [error]);
+
   return (
     <Layout>
       <Stack spacing={2.5}>
@@ -61,8 +69,6 @@ export default function MyOrderDetailsPage() {
             Back to My Orders
           </Button>
         </Stack>
-
-        {error ? <Alert severity="error">{error}</Alert> : null}
 
         {loading ? (
           <Stack alignItems="center" py={8}>

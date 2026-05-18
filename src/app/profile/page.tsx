@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Alert,
   Button,
   Card,
   CardContent,
@@ -15,6 +14,8 @@ import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { AppUser, saveUserToFirestore, subscribeToUser } from "@/services/userService";
 import { readMockProfileForUser, saveMockProfileForUser } from "@/utils/mockProfileStore";
+import { getFriendlyErrorMessage, uiDevLogError } from "@/utils/uiFeedback";
+import { showError, showSuccess } from "@/utils/toast";
 
 type ProfileForm = {
   name: string;
@@ -40,8 +41,6 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [form, setForm] = useState<ProfileForm>(initialForm);
 
   useEffect(() => {
@@ -83,7 +82,7 @@ export default function ProfilePage() {
         setLoading(false);
       },
       () => {
-        setError("Could not load profile.");
+        showError("Could not load profile.");
         setLoading(false);
       },
     );
@@ -98,16 +97,13 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
-    setError("");
-    setSuccess("");
-
     if (!user?.uid) {
-      setError("Please login first.");
+      showError("Please login first.");
       return;
     }
 
     if (!hasRequired) {
-      setError("Name and phone are required.");
+      showError("Name and phone are required.");
       return;
     }
 
@@ -128,7 +124,7 @@ export default function ProfilePage() {
           },
         });
 
-        setSuccess("Profile updated successfully.");
+        showSuccess("Profile saved successfully");
         return;
       }
 
@@ -145,10 +141,10 @@ export default function ProfilePage() {
         },
       });
 
-      setSuccess("Profile updated successfully.");
+      showSuccess("Profile saved successfully");
     } catch (saveError) {
-      console.error(saveError);
-      setError("Something went wrong while saving profile.");
+      uiDevLogError(saveError);
+      showError(getFriendlyErrorMessage(saveError, "Something went wrong"));
     } finally {
       setSaving(false);
     }
@@ -171,9 +167,6 @@ export default function ProfilePage() {
           <Stack spacing={2.5}>
             <Typography variant="h4">My Profile</Typography>
             <Typography color="text.secondary">Keep your details updated for faster checkout.</Typography>
-
-            {error ? <Alert severity="error">{error}</Alert> : null}
-            {success ? <Alert severity="success">{success}</Alert> : null}
 
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField label="Name" value={form.name} onChange={(event) => updateField("name", event.target.value)} fullWidth />
