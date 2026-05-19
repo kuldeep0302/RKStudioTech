@@ -89,8 +89,6 @@ const buildFallbackResponse = (
     total,
     breakdown: {
       basePrice,
-      quantity,
-      total,
       pickupCharge: 0,
       dropCharge: 0,
       finalPayable: 0,
